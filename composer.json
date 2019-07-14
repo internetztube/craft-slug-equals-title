@@ -1,0 +1,40 @@
+{
+    "name": "internetztube/craft-slug-equals-title",
+    "description": "This plugin makes sure that the slug is always the same as the title.",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "slug equals title"
+    ],
+    "support": {
+        "docs": "https://github.com/internetztube/slug-equals-title/blob/master/README.md",
+        "issues": "https://github.com/internetztube/slug-equals-title/issues"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Frederic Köberl",
+            "homepage": "https://frederickoeberl.com"
+        }
+    ],
+    "require": {
+        "craftcms/cms": "^3.0.0-RC1"
+    },
+    "autoload": {
+        "psr-4": {
+          "internetztube\\slugEqualsTitle\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Slug Equals Title",
+        "handle": "slug-equals-title",
+        "hasCpSettings": false,
+        "hasCpSection": false,
+        "changelogUrl": "https://raw.githubusercontent.com/internetztube/slug-equals-title/master/CHANGELOG.md",
+        "class": "internetztube\\slugEqualsTitle\\SlugEqualsTitle"
+    }
+}
