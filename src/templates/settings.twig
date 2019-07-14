@@ -1,0 +1,9 @@
+{% import "_includes/forms" as forms %}
+
+{{ forms.checkboxSelectField({
+    label: "Element Types where title gets set into the slug.",
+    options: elementsTypes,
+    showAllOption: true,
+    name: "enabledElementsTypes",
+    showAllOption: false,
+}) }}
