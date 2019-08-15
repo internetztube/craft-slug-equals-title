@@ -2,22 +2,19 @@
 
 namespace internetztube\slugEqualsTitle;
 
-
 use Craft;
 use craft\base\Plugin;
-use craft\services\Plugins;
-use craft\events\PluginEvent;
-
-use internetztube\slugEqualsTitle\services\ElementsTypeService;
+use craft\elements\Entry;
+use craft\web\View;
+use internetztube\slugEqualsTitle\assetBundles\ExcludeFromRewriteAssetBundle;
+use internetztube\slugEqualsTitle\services\ElementStatusService;
 use yii\base\Event;
-use craft\base\Element as BaseElement;
-use craft\events\ModelEvent;
 use internetztube\slugEqualsTitle\models\Settings;
 
 class SlugEqualsTitle extends Plugin
 {
     public static $plugin;
-    public $schemaVersion = '1.0.0';
+    public $schemaVersion = '1.0.1';
 
     public function init()
     {
@@ -25,16 +22,38 @@ class SlugEqualsTitle extends Plugin
         $this->hasCpSettings = true;
         self::$plugin = $this;
 
+        if (Craft::$app->request->isCpRequest) {
+            Craft::$app->view->registerAssetBundle(ExcludeFromRewriteAssetBundle::class);
+        }
         $this->setComponents([
-            'elementsType' => ElementsTypeService::class,
+            'elementStatus' => ElementStatusService::class,
         ]);
 
-        Event::on(BaseElement::class, BaseElement::EVENT_BEFORE_SAVE, function(ModelEvent $event) {
-            $enabledElementsTypes = $this->getSettings()->enabledElementsTypes;
+        Event::on(Entry::class, Entry::EVENT_BEFORE_SAVE, function(Event $event) {
             $element = $event->sender;
-            if (in_array(get_class($element), $enabledElementsTypes)) {
-                $element->slug = $element->title;
-            }
+            $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite');
+            if (!$toOverwrite) return;
+            $element->slug = $element->title;
+        });
+
+        Event::on(Entry::class, Entry::EVENT_AFTER_SAVE, function(Event $event) {
+            $element = $event->sender;
+            $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', null);
+            if (is_null($toOverwrite)) return;
+            $this->elementStatus->setElementStatus($element, (bool) $toOverwrite);
+        });
+
+        Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function ($event) {
+            if (!($event->template === 'entries/_edit' && Craft::$app->request->isCpRequest)) return;
+            /** @var View $view */
+            $view = $event->sender;
+            $element = $event->variables['entry'];
+
+            $isEnabledForOverwrite = $this->elementStatus->isEnabledForOverwrite($element);
+            $view->registerMetaTag([
+                'name' => 'slugEqualsTitleOverwriteEnabled',
+                'content' => $isEnabledForOverwrite ? 'true' : 'false'
+            ]);
         });
     }
 
@@ -45,19 +64,19 @@ class SlugEqualsTitle extends Plugin
 
     protected function settingsHtml(): string
     {
-        $elementTypes = $this->elementsType->allAvalible();
-        $enabledElementsTypes = $this->getSettings()->enabledElementsTypes;
+        $sections = Craft::$app->sections->getAllSections();
+        $enabledSections = $this->getSettings()->enabledSections;
 
-        $elementTypes = array_map(function($row) use ($enabledElementsTypes) {
+        $sections = array_map(function($row) use ($enabledSections) {
             return [
                 'label' => $row['name'],
-                'value' => $row['className'],
-                'checked' => in_array($row['className'], $enabledElementsTypes),
+                'value' => $row['handle'],
+                'checked' => in_array($row['handle'], $enabledSections),
             ];
-        }, $elementTypes);
+        }, $sections);
 
         return Craft::$app->view->renderTemplate('slug-equals-title/settings', [
-            'elementsTypes' => $elementTypes,
+            'sections' => $sections,
         ]);
     }
 }

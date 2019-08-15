@@ -1,9 +1,11 @@
 {% import "_includes/forms" as forms %}
 
 {{ forms.checkboxSelectField({
-    label: "Element Types where title gets set into the slug.",
-    options: elementsTypes,
-    showAllOption: true,
-    name: "enabledElementsTypes",
+    label: "Sections where slug equals the title per default.",
+    instructions: 'You can overwrite this default value directly on an entry.',
+    options: sections,
+    name: "enabledSections",
     showAllOption: false,
 }) }}
+
+<input type="hidden" name="enabledSections[]" value=";" />

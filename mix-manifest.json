@@ -1,0 +1,4 @@
+{
+    "/src/resources/exclude-from-rewrite/app.js": "/src/resources/exclude-from-rewrite/app.js",
+    "/src/resources/exclude-from-rewrite/app.css": "/src/resources/exclude-from-rewrite/app.css"
+}
