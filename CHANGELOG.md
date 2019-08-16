@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Logic of get parameter was adjusted.
 
+### Changed
+- Icon changed.
+
 ## 1.1.1 - 2019-08-15
 ### Added
 - Support for disabling overwrite for a single entry
