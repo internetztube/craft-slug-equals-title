@@ -25,14 +25,15 @@ class SlugEqualsTitle extends Plugin
         if (Craft::$app->request->isCpRequest) {
             Craft::$app->view->registerAssetBundle(ExcludeFromRewriteAssetBundle::class);
         }
+
         $this->setComponents([
             'elementStatus' => ElementStatusService::class,
         ]);
 
         Event::on(Entry::class, Entry::EVENT_BEFORE_SAVE, function(Event $event) {
             $element = $event->sender;
-            $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite');
-            if (!$toOverwrite) return;
+            $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', null);
+            if (is_null($toOverwrite)) return;
             $element->slug = $element->title;
         });
 
@@ -48,7 +49,6 @@ class SlugEqualsTitle extends Plugin
             /** @var View $view */
             $view = $event->sender;
             $element = $event->variables['entry'];
-
             $isEnabledForOverwrite = $this->elementStatus->isEnabledForOverwrite($element);
             $view->registerMetaTag([
                 'name' => 'slugEqualsTitleOverwriteEnabled',
@@ -66,7 +66,6 @@ class SlugEqualsTitle extends Plugin
     {
         $sections = Craft::$app->sections->getAllSections();
         $enabledSections = $this->getSettings()->enabledSections;
-
         $sections = array_map(function($row) use ($enabledSections) {
             return [
                 'label' => $row['name'],
