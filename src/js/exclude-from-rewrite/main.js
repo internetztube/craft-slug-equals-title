@@ -35,22 +35,16 @@ const buildLightSwitch = () => {
 const switchToggle = (status) => {
   if (status) {
     lightSwitch.turnOn();
-    $slugFieldInput.disabled = 'disabled';
-    $slugFieldInput.classList.add('disabled');
-    $slugFieldInput.dataset.value = $slugFieldInput.value;
-    $slugFieldInput.value = 'overwritten by title';
+    $slugFieldInputContainer.classList.add('slugEqualsTitle-overwrite-enabled');
   } else {
     lightSwitch.turnOff();
-    $slugFieldInput.disabled = '';
-    $slugFieldInput.classList.remove('disabled');
-    if ($slugFieldInput.dataset.hasOwnProperty('value')) {
-      $slugFieldInput.value = $slugFieldInput.dataset.value;
-    }
+    $slugFieldInputContainer.classList.remove('slugEqualsTitle-overwrite-enabled');
   }
 };
 
 const init = async () => {
   if (!isPageSuitable()) return;
+  document.querySelector('body').classList.add('slugEqualsTitle');
   $slugField = document.querySelector('#slug-field.field');
   if (!$slugField) return;
   const isEnabled = document.querySelector('meta[name="slugEqualsTitleOverwriteEnabled"]').content === "true";

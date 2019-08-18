@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.1.3 - 2019-08-18
+### Fixed
+- Fix CP slug field overwritten status bug.
+
 ## 1.1.2 - 2019-08-15
 ### Fixed
 - Logic of get parameter was adjusted.

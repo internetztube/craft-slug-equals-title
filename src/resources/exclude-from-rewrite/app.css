@@ -1,0 +1,12 @@
+.slugEqualsTitle #slug-field .input.slugEqualsTitle-overwrite-enabled input {
+  visibility: hidden;
+}
+
+.slugEqualsTitle #slug-field .input.slugEqualsTitle-overwrite-enabled:after {
+  content: "overwritten by title";
+  visibility: visible;
+  position: absolute;
+  top: 14px;
+  opacity: 0.25;
+}
+

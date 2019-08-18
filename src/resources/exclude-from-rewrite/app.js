@@ -901,18 +901,10 @@ var buildLightSwitch = function buildLightSwitch() {
 var switchToggle = function switchToggle(status) {
   if (status) {
     lightSwitch.turnOn();
-    $slugFieldInput.disabled = 'disabled';
-    $slugFieldInput.classList.add('disabled');
-    $slugFieldInput.dataset.value = $slugFieldInput.value;
-    $slugFieldInput.value = 'overwritten by title';
+    $slugFieldInputContainer.classList.add('slugEqualsTitle-overwrite-enabled');
   } else {
     lightSwitch.turnOff();
-    $slugFieldInput.disabled = '';
-    $slugFieldInput.classList.remove('disabled');
-
-    if ($slugFieldInput.dataset.hasOwnProperty('value')) {
-      $slugFieldInput.value = $slugFieldInput.dataset.value;
-    }
+    $slugFieldInputContainer.classList.remove('slugEqualsTitle-overwrite-enabled');
   }
 };
 
@@ -935,16 +927,17 @@ function () {
             return _context.abrupt("return");
 
           case 2:
+            document.querySelector('body').classList.add('slugEqualsTitle');
             $slugField = document.querySelector('#slug-field.field');
 
             if ($slugField) {
-              _context.next = 5;
+              _context.next = 6;
               break;
             }
 
             return _context.abrupt("return");
 
-          case 5:
+          case 6:
             isEnabled = document.querySelector('meta[name="slugEqualsTitleOverwriteEnabled"]').content === "true";
             $slugFieldInputContainer = $slugField.querySelector('.input');
             $slugFieldInput = $slugFieldInputContainer.querySelector('input');
@@ -954,7 +947,7 @@ function () {
               switchToggle($toggleInput.value === "1");
             });
 
-          case 11:
+          case 12:
           case "end":
             return _context.stop();
         }
