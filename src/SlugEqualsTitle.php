@@ -32,16 +32,21 @@ class SlugEqualsTitle extends Plugin
 
         Event::on(Entry::class, Entry::EVENT_BEFORE_SAVE, function(Event $event) {
             $element = $event->sender;
-            $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', null);
-            if (is_null($toOverwrite)) return;
+            if (Craft::$app->request->isConsoleRequest) {
+                $toOverwrite = $this->elementStatus->isEnabledForOverwrite($element);
+            } else {
+                $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', "") === "1";
+            }
+            if (!$toOverwrite) return;
             $element->slug = $element->title;
         });
 
         Event::on(Entry::class, Entry::EVENT_AFTER_SAVE, function(Event $event) {
+            if (Craft::$app->request->isConsoleRequest) return;
             $element = $event->sender;
             $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', null);
             if (is_null($toOverwrite)) return;
-            $this->elementStatus->setElementStatus($element, (bool) $toOverwrite);
+            $this->elementStatus->setElementStatus($element, $toOverwrite === "1");
         });
 
         Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function ($event) {

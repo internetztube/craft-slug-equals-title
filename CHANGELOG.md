@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.1.4 . 2019-09-05
+### Fixed
+- Fixed bug that occurred while resaving entries via console. #3
+
 ## 1.1.3 - 2019-08-18
 ### Fixed
 - Fix CP slug field overwritten status bug.
