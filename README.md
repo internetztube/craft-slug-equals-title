@@ -2,6 +2,8 @@
 
 The plugin does exactly what the name says. It assures that the slug is equal to the title. 
 
+![Share Image](screenshots/share.png)
+
 ## Requirements
 This plugin requires Craft CMS 3.0.0-beta.23 or later.
 
