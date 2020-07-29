@@ -1,7 +1,11 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.1.4 . 2019-09-05
+## 1.1.5 - 2020-07-29
+### Fixed
+- Update element id JavaScript selector (`entryId` -> `sourceId`)
+
+## 1.1.4 - 2019-09-05
 ### Fixed
 - Fixed bug that occurred while resaving entries via console. #3
 
