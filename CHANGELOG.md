@@ -1,7 +1,7 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
-## 12.0 - 2020-07-31
+## 1.2.0 - 2020-07-31
 ### Added
 - Support for `limitAutoSlugsToAscii`. #8
 
