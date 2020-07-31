@@ -3,8 +3,10 @@
 namespace internetztube\slugEqualsTitle;
 
 use Craft;
+use craft\base\Element;
 use craft\base\Plugin;
 use craft\elements\Entry;
+use craft\helpers\StringHelper;
 use craft\web\View;
 use internetztube\slugEqualsTitle\assetBundles\ExcludeFromRewriteAssetBundle;
 use internetztube\slugEqualsTitle\services\ElementStatusService;
@@ -31,6 +33,7 @@ class SlugEqualsTitle extends Plugin
         ]);
 
         Event::on(Entry::class, Entry::EVENT_BEFORE_SAVE, function(Event $event) {
+            /** @var Element $element */
             $element = $event->sender;
             if (Craft::$app->request->isConsoleRequest) {
                 $toOverwrite = $this->elementStatus->isEnabledForOverwrite($element);
@@ -38,7 +41,13 @@ class SlugEqualsTitle extends Plugin
                 $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', "") === "1";
             }
             if (!$toOverwrite) return;
-            $element->slug = $element->title;
+
+            $slug = $element->title;
+            if (Craft::$app->getConfig()->getGeneral()->limitAutoSlugsToAscii) {
+                $slug = StringHelper::toAscii($slug, $element->site->language);
+            }
+
+            $element->slug = $slug;
         });
 
         Event::on(Entry::class, Entry::EVENT_AFTER_SAVE, function(Event $event) {

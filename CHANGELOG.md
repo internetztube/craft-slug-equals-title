@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 12.0 - 2020-07-31
+### Added
+- Support for `limitAutoSlugsToAscii`. #8
+
 ## 1.1.5 - 2020-07-29
 ### Fixed
 - Update element id JavaScript selector (`entryId` -> `sourceId`)
