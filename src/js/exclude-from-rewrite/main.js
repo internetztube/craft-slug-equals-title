@@ -6,7 +6,7 @@ let $slugFieldInputContainer,
   lightSwitch;
 
 const isPageSuitable = () => {
-  const $fields = document.querySelectorAll('#content [name="sourceId"]');
+  const $fields = document.querySelectorAll('#content [name="sourceId"], #content [name="entryId"]');
   return $fields.length > 0;
 };
 

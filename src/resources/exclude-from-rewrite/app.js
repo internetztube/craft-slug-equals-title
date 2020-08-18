@@ -881,7 +881,7 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
 var $slugFieldInputContainer, $slugFieldInput, $slugField, $toggleContainer, $toggleInput, lightSwitch;
 
 var isPageSuitable = function isPageSuitable() {
-  var $fields = document.querySelectorAll('#content [name="sourceId"]');
+  var $fields = document.querySelectorAll('#content [name="sourceId"], #content [name="entryId"]');
   return $fields.length > 0;
 };
 
