@@ -881,7 +881,7 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
 var $slugFieldInputContainer, $slugFieldInput, $slugField, $toggleContainer, $toggleInput, lightSwitch;
 
 var isPageSuitable = function isPageSuitable() {
-  var $fields = document.querySelectorAll('#content [name="sourceId"], #content [name="entryId"]');
+  var $fields = document.querySelectorAll("\n    #content [name=\"sourceId\"], #content [name=\"entryId\"],\n    #content [value=\"commerce/products/save-product\"],\n    #content [value=\"categories/save-category\"]\n  ");
   return $fields.length > 0;
 };
 
@@ -973,8 +973,8 @@ function () {
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-__webpack_require__(/*! /Users/fred/PhpstormProjects/craft-slug-equals-title/src/js/exclude-from-rewrite/app.js */"./src/js/exclude-from-rewrite/app.js");
-module.exports = __webpack_require__(/*! /Users/fred/PhpstormProjects/craft-slug-equals-title/src/css/exclude-from-rewrite/app.scss */"./src/css/exclude-from-rewrite/app.scss");
+__webpack_require__(/*! /Users/frederic.koeberl/PhpstormProjects/craft-slug-equals-title/src/js/exclude-from-rewrite/app.js */"./src/js/exclude-from-rewrite/app.js");
+module.exports = __webpack_require__(/*! /Users/frederic.koeberl/PhpstormProjects/craft-slug-equals-title/src/css/exclude-from-rewrite/app.scss */"./src/css/exclude-from-rewrite/app.scss");
 
 
 /***/ })

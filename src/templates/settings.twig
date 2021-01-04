@@ -1,11 +1,37 @@
 {% import "_includes/forms" as forms %}
 
-{{ forms.checkboxSelectField({
-    label: "Sections where slug equals the title per default.",
-    instructions: 'You can overwrite this default value directly on an entry.',
-    options: sections,
-    name: "enabledSections",
-    showAllOption: false,
-}) }}
+<h2>Slug equals Title</h2>
+<p>For each type selected here, the slug is overwritten by default. You can overwrite this default value manually in the edit form.</p>
 
-<input type="hidden" name="enabledSections[]" value=";" />
+{% if sections | length %}
+    {{ forms.checkboxSelectField({
+        label: "Sections",
+        options: sections,
+        name: "enabledSections",
+        showAllOption: false,
+    }) }}
+    <input type="hidden" name="enabledSections[]" value=";" />
+{% endif %}
+
+{% if categoryGroups | length %}
+    {{ forms.checkboxSelectField({
+        label: "Category Groups",
+        options: categoryGroups,
+        name: "enabledCategoryGroups",
+        showAllOption: false,
+    }) }}
+    <input type="hidden" name="enabledCategoryGroups[]" value=";" />
+{% endif %}
+
+{% if productTypes is defined and productTypes | length %}
+    {{ forms.checkboxSelectField({
+        label: "Product Types",
+        options: productTypes,
+        name: "enabledProductTypes",
+        showAllOption: false,
+    }) }}
+    <input type="hidden" name="enabledProductTypes[]" value=";" />
+{% endif %}
+
+
+

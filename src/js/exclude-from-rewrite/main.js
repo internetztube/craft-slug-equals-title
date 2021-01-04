@@ -6,7 +6,11 @@ let $slugFieldInputContainer,
   lightSwitch;
 
 const isPageSuitable = () => {
-  const $fields = document.querySelectorAll('#content [name="sourceId"], #content [name="entryId"]');
+  const $fields = document.querySelectorAll(`
+    #content [name="sourceId"], #content [name="entryId"],
+    #content [value="commerce/products/save-product"],
+    #content [value="categories/save-category"]
+  `);
   return $fields.length > 0;
 };
 

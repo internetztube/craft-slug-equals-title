@@ -5,6 +5,9 @@ namespace internetztube\slugEqualsTitle;
 use Craft;
 use craft\base\Element;
 use craft\base\Plugin;
+use craft\commerce\elements\Product;
+use craft\commerce\services\ProductTypes;
+use craft\elements\Category;
 use craft\elements\Entry;
 use craft\helpers\StringHelper;
 use craft\web\View;
@@ -32,7 +35,7 @@ class SlugEqualsTitle extends Plugin
             'elementStatus' => ElementStatusService::class,
         ]);
 
-        Event::on(Entry::class, Entry::EVENT_BEFORE_SAVE, function(Event $event) {
+        $beforeSafeCallback = function(Event $event) {
             /** @var Element $element */
             $element = $event->sender;
             if (Craft::$app->request->isConsoleRequest) {
@@ -48,21 +51,26 @@ class SlugEqualsTitle extends Plugin
             }
 
             $element->slug = $slug;
-        });
+        };
 
-        Event::on(Entry::class, Entry::EVENT_AFTER_SAVE, function(Event $event) {
+        $afterSafeCallback = function(Event $event) {
             if (Craft::$app->request->isConsoleRequest) return;
             $element = $event->sender;
             $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', null);
             if (is_null($toOverwrite)) return;
             $this->elementStatus->setElementStatus($element, $toOverwrite === "1");
-        });
+        };
+
+        foreach ($this->elementStatus->mapping() as $mapping) {
+            Event::on($mapping['eventClass'], $mapping['eventNameAfterSafe'], $afterSafeCallback);
+            Event::on($mapping['eventClass'], $mapping['eventNameBeforeSafe'], $beforeSafeCallback);
+        }
 
         Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function ($event) {
-            if (!($event->template === 'entries/_edit' && Craft::$app->request->isCpRequest)) return;
+            if (!$this->elementStatus->isTemplateEnabledForOverwrite($event->template)) return;
             /** @var View $view */
             $view = $event->sender;
-            $element = $event->variables['entry'];
+            $element = $this->elementStatus->getElementFromEventVariables($event->variables);
             $isEnabledForOverwrite = $this->elementStatus->isEnabledForOverwrite($element);
             $view->registerMetaTag([
                 'name' => 'slugEqualsTitleOverwriteEnabled',
@@ -78,18 +86,7 @@ class SlugEqualsTitle extends Plugin
 
     protected function settingsHtml(): string
     {
-        $sections = Craft::$app->sections->getAllSections();
-        $enabledSections = $this->getSettings()->enabledSections;
-        $sections = array_map(function($row) use ($enabledSections) {
-            return [
-                'label' => $row['name'],
-                'value' => $row['handle'],
-                'checked' => in_array($row['handle'], $enabledSections),
-            ];
-        }, $sections);
-
-        return Craft::$app->view->renderTemplate('slug-equals-title/settings', [
-            'sections' => $sections,
-        ]);
+        $data = $this->elementStatus->getTemplateVariables();
+        return Craft::$app->view->renderTemplate('slug-equals-title/settings', $data);
     }
 }
