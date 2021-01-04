@@ -18,20 +18,25 @@ You can also install this plugin via the Plugin Store in the Craft Control Panel
 Please report any issues you find to the [Issues](https://github.com/internetztube/craft-slug-equals-title/issues) page.
 
 ## How the config works
-Basically, this works for every entry. By default, nothing is overwritten. In the settings of the plugin, you can adjust the overwriting per section. 
+Basically, this works for every Entry, Category or Commerce Product. By default, nothing is overwritten. In the settings of the plugin, you can adjust the overwriting per type (section, product type, category group). 
 
-If the overwriting of the slugs on a section has been enabled, then this setting applies to entries which have been saved the last time before installing the plugin or are newly created.
+If the overwriting of the slugs on a type has been enabled, then this setting applies to elements which have been saved the last time before installing the plugin or are newly created.
 
-In practice, this means that old entries are not touched at first. But if you want to edit such an old entry, which should be overwritten by the section according to the default setting, then the existing slug will be overwritten by default. However, if the entry should keep its slug, then switch off the light switch and save the entry. Then the light switch is off when editing the entry again.
+In practice, this means that old elements are not touched at first. But if you want to edit such an old element, which should be overwritten by the section according to the default setting, then the existing slug will be overwritten by default. However, if the element should keep its slug, then switch off the light switch and save the element. Then the light switch is off when editing the element again.
 
+### Supported Types
+ * Entries
+ * Categories
+ * Commerce Products
+ 
 ## Screenshots
 Settings
 ![settings-page](screenshots/settings-page.png)
 
-New entry, that is in a section that HAS NOT BEEN flagged for overwriting.
+New element, that is in a section that HAS NOT BEEN flagged for overwriting.
 ![settings-page](screenshots/create-employee.png)
 
-New entry, that is in a section that HAS BEEN flagged for overwriting.
+New element, that is in a section that HAS BEEN flagged for overwriting.
 ![settings-page](screenshots/create-page.png)
 
 
