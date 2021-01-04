@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.3.0 - 2021-01-XX
+### Added
+- Added support for Commerce Products and Categories.
+
 ## 1.2.1 - 2020-08-18
 ### Fixed
 - Fixed a bug that caused the lightswitch to disappear on Craft <= 3.4. Thanks @skoften! #10
