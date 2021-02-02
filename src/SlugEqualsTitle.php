@@ -27,10 +27,6 @@ class SlugEqualsTitle extends Plugin
         $this->hasCpSettings = true;
         self::$plugin = $this;
 
-        if (Craft::$app->request->isCpRequest) {
-            Craft::$app->view->registerAssetBundle(ExcludeFromRewriteAssetBundle::class);
-        }
-
         $this->setComponents([
             'elementStatus' => ElementStatusService::class,
         ]);
@@ -68,6 +64,7 @@ class SlugEqualsTitle extends Plugin
 
         Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function ($event) {
             if (!$this->elementStatus->isTemplateEnabledForOverwrite($event->template)) return;
+            Craft::$app->view->registerAssetBundle(ExcludeFromRewriteAssetBundle::class);
             /** @var View $view */
             $view = $event->sender;
             $element = $this->elementStatus->getElementFromEventVariables($event->variables);

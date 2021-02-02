@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.3.1 - 2021-02-02
+### Fixed
+- Only register Asset Bundle when necessary. #12
+
 ## 1.3.0 - 2021-01-04
 ### Added
 - Added support for Commerce Products and Categories.
