@@ -19,12 +19,12 @@ class ElementStatusService extends Component
         $result = [
             [
                 'template' => 'categories/_edit',
-                'elementType' => 'category',
+                'elementType' => ['category', 'element'],
                 'class' => Category::class,
                 'settingName' => 'enabledCategoryGroups',
                 'templateVariableName' => 'categoryGroups',
                 'all' => Craft::$app->categories->getAllGroups(),
-                'typeIdFromElement' => function (Category $category) {
+                'typeFromElement' => function (Category $category) {
                     return $category->group;
                 },
                 'eventClass' => Category::class,
@@ -33,12 +33,12 @@ class ElementStatusService extends Component
             ],
             [
                 'template' => 'entries/_edit',
-                'elementType' => 'entry',
+                'elementType' => ['entry'],
                 'class' => Entry::class,
                 'settingName' => 'enabledSections',
                 'templateVariableName' => 'sections',
                 'all' => Craft::$app->sections->getAllSections(),
-                'typeIdFromElement' => function (Entry $entry) {
+                'typeFromElement' => function (Entry $entry) {
                     return $entry->section;
                 },
                 'eventClass' => Entry::class,
@@ -57,12 +57,12 @@ class ElementStatusService extends Component
     private function commerceMapping() {
         return [
             'template' => 'commerce/products/_edit',
-            'elementType' => 'product',
+            'elementType' => ['product'],
             'class' => Product::class,
             'settingName' => 'enabledProductTypes',
             'templateVariableName' => 'productTypes',
             'all' => (new ProductTypes())->allProductTypes,
-            'typeIdFromElement' => function (Product $product) {
+            'typeFromElement' => function (Product $product) {
                 return $product->type;
             },
             'eventClass' => Product::class,
@@ -111,8 +111,10 @@ class ElementStatusService extends Component
     public function getElementFromEventVariables(array $variables): ?Element
     {
         foreach ($this->mapping() as $row) {
-            if (isset($variables[$row['elementType']])) {
-                return $variables[$row['elementType']];
+            foreach ($row['elementType'] as $elementType) {
+                if (isset($variables[$elementType])) {
+                    return $variables[$elementType];
+                }
             }
         }
         return null;
@@ -130,7 +132,7 @@ class ElementStatusService extends Component
     private function isTypeEnabledForOverwrite(Element $element, array $mapping)
     {
         $enabledTypeHandles = SlugEqualsTitle::$plugin->getSettings()->{$mapping['settingName']};
-        $elementType = $mapping['typeIdFromElement']($element);
+        $elementType = $mapping['typeFromElement']($element);
 
         foreach ($enabledTypeHandles as $enabledTypeHandle) {
             if ($enabledTypeHandle === $elementType->handle) return true;

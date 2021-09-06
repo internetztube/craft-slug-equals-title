@@ -32,7 +32,9 @@ const buildLightSwitch = () => {
 
   lightSwitch = new Craft.LightSwitch($toggleContainer);
   const width = $slugFieldInputContainer.getBoundingClientRect().width - $toggleContainer.getBoundingClientRect().width;
-  $slugFieldInputContainer.style.width = `${width}px`;
+  const spaceRight = 10;
+  $slugFieldInputContainer.style.width = `${width - spaceRight}px`;
+  $slugFieldInputContainer.style.marginRight = `${spaceRight}px`;
   $toggleInput = document.querySelector(`[name=${hiddenFieldName}]`);
 };
 
