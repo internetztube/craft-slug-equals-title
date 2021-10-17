@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.3.3 - 2021-10-17
+### Updated
+- Updated Icon.
+
 ## 1.3.2 - 2021-09-06
 ### Fixed
 - Fix categories. #14
