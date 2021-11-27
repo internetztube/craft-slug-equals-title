@@ -45,6 +45,7 @@ class SlugEqualsTitle extends Plugin
             if (Craft::$app->getConfig()->getGeneral()->limitAutoSlugsToAscii) {
                 $slug = StringHelper::toAscii($slug, $element->site->language);
             }
+            $slug = StringHelper::slugify($slug, '-', $element->site->language);
 
             $element->slug = $slug;
         };

@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.3.4 - 2021-11-28
+### Fixed
+- Use `StringHelper::slugify` before setting `$entry->slug`. Fix #15. 
+
 ## 1.3.3 - 2021-10-17
 ### Updated
 - Updated Icon.
