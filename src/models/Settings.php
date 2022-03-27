@@ -10,7 +10,7 @@ class Settings extends Model
     public $enabledCategoryGroups = [];
     public $enabledProductTypes = [];
 
-    public function rules()
+    public function rules(): array
     {
         return [];
     }
