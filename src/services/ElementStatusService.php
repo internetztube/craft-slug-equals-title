@@ -5,12 +5,17 @@ namespace internetztube\slugEqualsTitle\services;
 use Craft;
 use craft\base\Component;
 use craft\base\Element;
+use craft\base\ElementInterface;
 use craft\commerce\elements\Product;
 use craft\commerce\services\ProductTypes;
 use craft\elements\Category;
 use craft\elements\Entry;
+use craft\events\TemplateEvent;
+use craft\web\twig\variables\CraftVariable;
+use craft\web\View;
 use internetztube\slugEqualsTitle\records\ElementStatus;
 use internetztube\slugEqualsTitle\SlugEqualsTitle;
+use Twig\Environment;
 
 class ElementStatusService extends Component
 {
@@ -54,7 +59,8 @@ class ElementStatusService extends Component
         return $result;
     }
 
-    private function commerceMapping() {
+    private function commerceMapping()
+    {
         return [
             'template' => 'commerce/products/_edit',
             'elementType' => ['product'],
@@ -87,8 +93,8 @@ class ElementStatusService extends Component
 
     public function getTemplateVariables()
     {
-        $selectOptionsBuilder = function(array $all, array $currentlySelected) {
-            return array_map(function($row) use ($currentlySelected) {
+        $selectOptionsBuilder = function (array $all, array $currentlySelected) {
+            return array_map(function ($row) use ($currentlySelected) {
                 $checked = in_array($row['handle'], $currentlySelected);
                 return ['label' => $row['name'], 'value' => $row['handle'], 'checked' => $checked];
             }, $all);
@@ -150,6 +156,21 @@ class ElementStatusService extends Component
         $mapping = $this->getMappingFromElement($element);
         if (!$mapping) return false;
         return $this->isTypeEnabledForOverwrite($element, $mapping);
+    }
+
+    public function isUniformedElementEditor(TemplateEvent $event): bool
+    {
+        return (strpos($event->variables['details'], 'slug-field') !== false);
+    }
+
+    public function getElementFromUniformedElementEditor(TemplateEvent $event)
+    {
+        /** @var CraftVariable $view */
+        $closure = $event->sender
+            ->getTwig()->getGlobals()['craft']
+            ->app->controller->response->behaviors['cp-screen']->prepareScreen;
+        $reflection = new \ReflectionFunction($closure);
+        return $reflection->getStaticVariables()['element'];
     }
 
     private function isEnabled(Element $element)

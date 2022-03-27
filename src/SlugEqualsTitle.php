@@ -9,6 +9,7 @@ use craft\commerce\elements\Product;
 use craft\commerce\services\ProductTypes;
 use craft\elements\Category;
 use craft\elements\Entry;
+use craft\events\TemplateEvent;
 use craft\helpers\StringHelper;
 use craft\web\View;
 use internetztube\slugEqualsTitle\assetBundles\ExcludeFromRewriteAssetBundle;
@@ -63,12 +64,18 @@ class SlugEqualsTitle extends Plugin
             Event::on($mapping['eventClass'], $mapping['eventNameBeforeSafe'], $beforeSafeCallback);
         }
 
-        Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function ($event) {
-            if (!$this->elementStatus->isTemplateEnabledForOverwrite($event->template)) return;
+        Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function (TemplateEvent $event) {
+            $isUniformedElementEditor = $this->elementStatus->isUniformedElementEditor($event);
+            $isTemplateEnabledForOverwrite = $this->elementStatus->isTemplateEnabledForOverwrite($event->template);
+            if (!$isUniformedElementEditor && !$isTemplateEnabledForOverwrite) { return; }
             Craft::$app->view->registerAssetBundle(ExcludeFromRewriteAssetBundle::class);
             /** @var View $view */
             $view = $event->sender;
-            $element = $this->elementStatus->getElementFromEventVariables($event->variables);
+            if ($isUniformedElementEditor) {
+                $element = $this->elementStatus->getElementFromUniformedElementEditor($event);
+            } else {
+                $element = $this->elementStatus->getElementFromEventVariables($event->variables);
+            }
             $isEnabledForOverwrite = $this->elementStatus->isEnabledForOverwrite($element);
             $view->registerMetaTag([
                 'name' => 'slugEqualsTitleOverwriteEnabled',
