@@ -37,8 +37,5 @@
         "class": "internetztube\\slugEqualsTitle\\SlugEqualsTitle"
     },
     "minimum-stability": "dev",
-    "prefer-stable": true,
-    "require-dev": {
-        "craftcms/rector": "dev-main"
-    }
+    "prefer-stable": true
 }
