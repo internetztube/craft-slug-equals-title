@@ -1,6 +1,12 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 2.0.0-beta.1 - 2022-04-02
+### Added
+- Added support for [Craft CMS 4.0.0-beta.3](https://github.com/craftcms/cms/releases/tag/4.0.0-beta.3).
+- Added support for [Unified Element Editor](https://craftcms.com/docs/4.x/extend/updating-plugins.html#unified-element-editor).
+- Added support for [Craft Commerce 4.0.0-beta.1](https://github.com/craftcms/commerce/releases/tag/4.0.0-beta.1).
+
 ## 1.3.4 - 2021-11-28
 ### Fixed
 - Use `StringHelper::slugify` before setting `$entry->slug`. Fix #15. 

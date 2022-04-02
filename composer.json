@@ -2,7 +2,7 @@
     "name": "internetztube/craft-slug-equals-title",
     "description": "This plugin makes sure that the slug is always the same as the title.",
     "type": "craft-plugin",
-    "version": "2.0.0",
+    "version": "2.0.0-beta.1",
     "keywords": [
         "craft",
         "cms",
