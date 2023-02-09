@@ -9,7 +9,7 @@ use craft\commerce\elements\Product;
 use craft\commerce\services\ProductTypes;
 use craft\elements\Category;
 use craft\elements\Entry;
-use craft\helpers\StringHelper;
+use craft\helpers\ElementHelper;
 use craft\web\View;
 use internetztube\slugEqualsTitle\assetBundles\ExcludeFromRewriteAssetBundle;
 use internetztube\slugEqualsTitle\services\ElementStatusService;
@@ -41,13 +41,7 @@ class SlugEqualsTitle extends Plugin
             }
             if (!$toOverwrite) return;
 
-            $slug = $element->title;
-            if (Craft::$app->getConfig()->getGeneral()->limitAutoSlugsToAscii) {
-                $slug = StringHelper::toAscii($slug, $element->site->language);
-            }
-            $slug = StringHelper::slugify($slug, '-', $element->site->language);
-
-            $element->slug = $slug;
+            $element->slug = ElementHelper::generateSlug($element->title, null, $element->site->language);
         };
 
         $afterSafeCallback = function(Event $event) {
