@@ -22,7 +22,7 @@
         }
     ],
     "require": {
-        "craftcms/cms": "^3.0.0-RC1"
+        "craftcms/cms": "^3.5.0"
     },
     "autoload": {
         "psr-4": {
@@ -34,5 +34,11 @@
         "handle": "slug-equals-title",
         "changelogUrl": "https://raw.githubusercontent.com/internetztube/craft-slug-equals-title/master/CHANGELOG.md",
         "class": "internetztube\\slugEqualsTitle\\SlugEqualsTitle"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
     }
 }
