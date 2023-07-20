@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.3.6 - 2023-07-20
+### Fixed
+- Fixed bug that occurred when title was empty. [#19](https://github.com/internetztube/craft-slug-equals-title/issues/19) [#20](https://github.com/internetztube/craft-slug-equals-title/pull/20) Thank you [@jorisnoo](https://github.com/jorisnoo)! 
+
 ## 1.3.5 - 2023-02-09
 ### Fixed
 - Use `ElementHelper::generateSlug` instead of `StringHelper::slugify`. Thank you, [@engram-design](https://github.com/engram-design). [#18](https://github.com/internetztube/craft-slug-equals-title/pull/18)

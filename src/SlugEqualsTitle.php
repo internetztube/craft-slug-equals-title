@@ -40,6 +40,7 @@ class SlugEqualsTitle extends Plugin
                 $toOverwrite = Craft::$app->request->getBodyParam('slugEqualsTitle_shouldRewrite', "") === "1";
             }
             if (!$toOverwrite) return;
+            if (!$element->title) return;
 
             $element->slug = ElementHelper::generateSlug($element->title, null, $element->site->language);
         };
