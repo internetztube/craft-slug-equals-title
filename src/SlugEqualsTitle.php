@@ -42,7 +42,6 @@ class SlugEqualsTitle extends Plugin
                 $toOverwrite = Craft::$app->request->getBodyParam(self::$inputName, "") === "1";
             }
             if (!$toOverwrite) return;
-            
             if (!$element->title) return;
 
             $element->slug = ElementHelper::generateSlug($element->title, null, $element->site->language);
