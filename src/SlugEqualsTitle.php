@@ -17,6 +17,9 @@ use internetztube\slugEqualsTitle\services\ElementStatusService;
 use yii\base\Event;
 use internetztube\slugEqualsTitle\models\Settings;
 
+/**
+ * @property ElementStatusService $elementStatus
+ */
 class SlugEqualsTitle extends Plugin
 {
     public static $plugin;
@@ -92,10 +95,10 @@ class SlugEqualsTitle extends Plugin
         });
 
         // Craft Commerce
-        if (Craft::$app->plugins->isPluginEnabled('commerce')) {
-            Event::on(View::class, View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE, function (TemplateEvent $event) use ($injectableHtml) {
-                if ($event->template !== 'commerce/products/_edit') { return; }
-                $event->sender->registerHtml($injectableHtml($event->variables['product']));
+        if ($this->elementStatus->isCommerceEnabled()) {
+            Event::on(\craft\commerce\elements\Product::class, \craft\commerce\elements\Product::EVENT_DEFINE_SIDEBAR_HTML, function (DefineHtmlEvent $event) use ($injectableHtml) {
+                $element = $event->sender ?? null;
+                $event->html .= $injectableHtml($element);
             });
             Event::on(\craft\commerce\elements\Product::class, \craft\commerce\elements\Product::EVENT_AFTER_SAVE, $afterSafeCallback);
             Event::on(\craft\commerce\elements\Product::class, \craft\commerce\elements\Product::EVENT_BEFORE_SAVE, $beforeSafeCallback);

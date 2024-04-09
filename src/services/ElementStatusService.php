@@ -5,8 +5,6 @@ namespace internetztube\slugEqualsTitle\services;
 use Craft;
 use craft\base\Component;
 use craft\base\Element;
-use craft\commerce\elements\Product;
-use craft\commerce\services\ProductTypes;
 use craft\elements\Category;
 use craft\elements\Entry;
 use internetztube\slugEqualsTitle\records\ElementStatus;
@@ -28,18 +26,18 @@ class ElementStatusService extends Component
                 'className' => Entry::class,
                 'settingName' => 'enabledSections',
                 'templateVariableName' => 'sections',
-                'all' => Craft::$app->sections->getAllSections(),
+                'all' => Craft::$app->entries->getAllSections(),
                 'typeFromElement' => function (Entry $entry) { return $entry->section; },
             ],
         ];
 
-        if (Craft::$app->plugins->isPluginEnabled('commerce')) {
+        if ($this->isCommerceEnabled()) {
             $result[] = [
-                'className' => Product::class,
+                'className' => \craft\commerce\elements\Product::class,
                 'settingName' => 'enabledProductTypes',
                 'templateVariableName' => 'productTypes',
-                'all' => (new ProductTypes())->allProductTypes,
-                'typeFromElement' => function (Product $product) { return $product->type; },
+                'all' => (new \craft\commerce\services\ProductTypes())->allProductTypes,
+                'typeFromElement' => function (\craft\commerce\elements\Product $product) { return $product->type; },
             ];;
         }
         return $result;
@@ -106,6 +104,13 @@ class ElementStatusService extends Component
             return null;
         }
         return (bool)$record->enabled;
+    }
+
+    public function isCommerceEnabled() : bool
+    {
+        return Craft::$app->plugins->isPluginEnabled('commerce')
+            && class_exists('\craft\commerce\elements\Product')
+            && class_exists('\craft\commerce\services\ProductTypes');
     }
 
     public function setElementStatus(Element $element, bool $enabledForOverwrite)

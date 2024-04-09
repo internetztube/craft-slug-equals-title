@@ -1,6 +1,11 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 3.0.0-beta.1 - 2024-04-09
+### Added
+- Added support for [Craft CMS 5.0.0](https://github.com/craftcms/cms/releases/tag/5.0.0).
+- Added support for [Craft Commerce 5.0.0-beta.2](https://github.com/craftcms/commerce/releases/tag/5.0.0-beta.2).
+
 ## 2.0.1 - 2023-07-20
 ### Fixed
 - Fixed bug that occurred when title was empty. [#19](https://github.com/internetztube/craft-slug-equals-title/issues/19) [#20](https://github.com/internetztube/craft-slug-equals-title/pull/20) Thank you [@jorisnoo](https://github.com/jorisnoo)!
