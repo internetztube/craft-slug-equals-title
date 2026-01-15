@@ -76,6 +76,10 @@ class ElementStatusService extends Component
         $enabledTypeHandles = SlugEqualsTitle::$plugin->getSettings()->{$mapping['settingName']};
         $elementType = $mapping['typeFromElement']($element);
 
+        if (!$elementType || !property_exists($elementType, 'handle')) {
+            return false;
+        }
+
         foreach ($enabledTypeHandles as $enabledTypeHandle) {
             if ($enabledTypeHandle === $elementType->handle) return true;
         }
