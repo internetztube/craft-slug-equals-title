@@ -1,6 +1,10 @@
 # Slug Equals Title Changelog
 All notable changes to this project will be documented in this file.
 
+## 3.0.1 - 2026-01-15
+### Fixed
+- Fixed Issue which occurred when Entry does not have a Entry Type. [#22](https://github.com/internetztube/craft-slug-equals-title/pull/22) Thank you  [@ishetnogferre](https://github.com/ishetnogferre)!
+
 ## 3.0.0-beta.1 - 2024-04-09
 ### Added
 - Added support for [Craft CMS 5.0.0](https://github.com/craftcms/cms/releases/tag/5.0.0).
