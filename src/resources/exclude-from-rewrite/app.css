@@ -10,3 +10,9 @@
   opacity: 0.25;
 }
 
+#slug-field > div:last-child {
+  display: flex;
+  align-items: center;
+  transform: translateX(-10px);
+}
+
