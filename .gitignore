@@ -5,12 +5,14 @@
 
 # COMPOSER
 /vendor
+composer.lock
 
 # BUILD FILES
 /bower_components/*
 /node_modules/*
 /build/*
 /yarn-error.log
+yarn.lock
 
 # MISC FILES
 .cache
