@@ -50,6 +50,7 @@ $targets = [
     'category' => ['path' => editPath(Category::find()->group('topics')->title('City guides')->one() ?? throw new RuntimeException('No category (run the seed)'))],
     'product' => null,
     'settings' => '/admin/settings/plugins/slug-equals-title',
+    'uids' => ['news' => Craft::$app->getEntries()->getSectionByHandle('news')?->uid, 'pages' => Craft::$app->getEntries()->getSectionByHandle('pages')?->uid, 'topics' => Craft::$app->getCategories()->getGroupByHandle('topics')?->uid, 'landingPage' => Craft::$app->getEntries()->getEntryTypeByHandle('landingPage')?->uid],
     'pagesIndex' => '/admin/entries/pages',
 ];
 if (Craft::$app->getPlugins()->isPluginEnabled('commerce')) {
@@ -59,7 +60,7 @@ if (Craft::$app->getPlugins()->isPluginEnabled('commerce')) {
 if ($mode === 'fixtures') {
     // the seeded settings (dev/seed.php): a run that failed on the settings page may have left others
     $plugin = internetztube\slugEqualsTitle\SlugEqualsTitle::getInstance();
-    $seeded = ['enabledSections' => ['news'], 'enabledCategoryGroups' => [], 'enabledProductTypes' => $targets['product'] ? ['clothing'] : []];
+    $seeded = ['enabledSections' => [$targets['uids']['news']], 'enabledCategoryGroups' => [], 'enabledProductTypes' => $targets['product'] ? [\craft\commerce\Plugin::getInstance()->getProductTypes()->getProductTypeByHandle('clothing')->uid] : []];
     if ($plugin->getSettings()->enabledSections !== $seeded['enabledSections'] || $plugin->getSettings()->enabledProductTypes !== $seeded['enabledProductTypes']) {
         Craft::$app->getPlugins()->savePluginSettings($plugin, $seeded);
         Craft::$app->getProjectConfig()->saveModifiedConfigData();

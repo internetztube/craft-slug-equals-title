@@ -98,6 +98,11 @@ $plugin = SlugEqualsTitle::getInstance();
 $slugs = $plugin->slugs;
 $de = Craft::$app->getSites()->getSiteByHandle('de') ?? throw new RuntimeException('Run the seed first');
 $commerce = Craft::$app->getPlugins()->isPluginEnabled('commerce');
+$newsUid = Craft::$app->getEntries()->getSectionByHandle('news')?->uid ?? throw new RuntimeException('Run the seed first');
+$pagesUid = Craft::$app->getEntries()->getSectionByHandle('pages')?->uid ?? throw new RuntimeException('Run the seed first');
+$landingUid = Craft::$app->getEntries()->getEntryTypeByHandle('landingPage')?->uid ?? throw new RuntimeException('Run the seed first');
+$topicsUid = Craft::$app->getCategories()->getGroupByHandle('topics')?->uid ?? throw new RuntimeException('Run the seed first');
+$clothingUid = $commerce ? \craft\commerce\Plugin::getInstance()->getProductTypes()->getProductTypeByHandle('clothing')->uid : null;
 $reload = fn(ElementInterface $element, ?int $siteId = null): ElementInterface => $element::find()->id($element->id)->siteId($siteId ?? $element->siteId)->status(null)->drafts(null)->one() ?? throw new RuntimeException("Element $element->id is gone");
 $rows = fn(ElementInterface $element): array => (new Query())->select(['enabled'])->from(SlugService::TABLE)->where(['elementId' => $element->id])->column();
 $editPath = function(ElementInterface $element): string {
@@ -234,14 +239,17 @@ check($status === 200 && isset($json['sidebar']) && $switchOn((string)$json['sid
 echo "Settings page\n";
 [$status, $html] = $http->page('/admin/settings/plugins/slug-equals-title');
 check($status === 200, "the settings page renders (HTTP $status)");
-check(preg_match('/name="settings\[enabledSections\]\[\]"[^>]*value="news"[^>]*checked/', $html) === 1 || preg_match('/<input[^>]*checked[^>]*name="settings\[enabledSections\]\[\]"[^>]*value="news"/', $html) === 1, 'News is ticked under Sections');
-check(preg_match('/name="settings\[enabledCategoryGroups\]\[\]"[^>]*value="topics"[^>]*disabled|disabled[^>]*name="settings\[enabledCategoryGroups\]\[\]"/s', $html) === 1 && str_contains($html, 'config/slug-equals-title.php'), 'Category Groups is read-only with a note: set in config/slug-equals-title.php');
+$box = fn(string $name, string $value): ?string => preg_match('/<input[^>]*name="settings\[' . preg_quote($name, '/') . '\]\[\]"[^>]*value="' . preg_quote($value, '/') . '"[^>]*>/', $html, $m) || preg_match('/<input[^>]*value="' . preg_quote($value, '/') . '"[^>]*name="settings\[' . preg_quote($name, '/') . '\]\[\]"[^>]*>/', $html, $m) ? $m[0] : null;
+check(str_contains((string)$box('enabledSections', $newsUid), 'checked') && $box('enabledSections', $pagesUid) !== null && !str_contains((string)$box('enabledSections', $pagesUid), 'checked'), 'Sections are listed by UID: News ticked, Pages not');
+check($box('enabledSections', "$pagesUid:$landingUid") !== null && !str_contains($html, "value=\"$newsUid:"), 'the entry types of Pages (two of them) are listed under it, by "section:entryType" UIDs; News with one entry type lists none');
+check(preg_match('/<input[^>]*value="' . preg_quote($newsUid, '/') . '"[^>]*data-reverse-target="[^"]*section-news-types"/', $html) === 1 || preg_match('/data-reverse-target="[^"]*section-pages-types"/', $html) === 1, 'a section checkbox hides its entry types while it is ticked (Craft\'s own field toggle)');
+check(str_contains((string)$box('enabledCategoryGroups', $topicsUid), 'disabled') && str_contains((string)$box('enabledCategoryGroups', $topicsUid), 'checked') && str_contains($html, 'config/slug-equals-title.php'), 'Category Groups is read-only with a note: set in config/slug-equals-title.php (its handle there matches the group)');
 check(($commerce && str_contains($html, 'settings[enabledProductTypes][]')) || (!$commerce && !str_contains($html, 'enabledProductTypes')), 'Product Types are listed only with Commerce');
-[$status, $body, $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => ['news', 'pages'], 'enabledCategoryGroups' => '', 'enabledProductTypes' => '']]);
+[$status, $body, $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid, "$pagesUid:$landingUid"], 'enabledCategoryGroups' => '', 'enabledProductTypes' => '']]);
 check($status === 200 && empty($json['errors']), "saving the settings succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
 $stored = Craft::$app->getProjectConfig()->get('plugins.slug-equals-title.settings', true);
-check(($stored['enabledSections'] ?? null) === ['news', 'pages'] && empty($stored['enabledProductTypes']), 'the ticked sections are stored; an empty list is stored as none');
-[$status, , $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => ['news'], 'enabledCategoryGroups' => '', 'enabledProductTypes' => $commerce ? ['clothing'] : '']]);
+check(($stored['enabledSections'] ?? null) === [$newsUid, "$pagesUid:$landingUid"] && empty($stored['enabledProductTypes']), 'the ticked section and entry type are stored by UID; an empty list is stored as none');
+[$status, , $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid], 'enabledCategoryGroups' => '', 'enabledProductTypes' => $commerce ? [$clothingUid] : '']]);
 check($status === 200 && empty($json['errors']), 'the seeded settings are back');
 
 // --- cleanup

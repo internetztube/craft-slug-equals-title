@@ -1,7 +1,7 @@
 <!--
 Text for the Plugin Store listing on plugins.craftcms.com (Craft Console → Plugins → Slug Equals Title).
 Short description: The slug follows the title. Per section by default, per entry when you want.
-Screenshots, in this order: edit-page, own-slug, slideout, front-end, settings (docs/screenshots/*.jpg); cover: docs/screenshots/share.png.
+Screenshots, in this order: edit-page, own-slug, slideout, front-end, settings (docs/screenshots/*.jpg); cover: docs/screenshots/cover.jpg.
 Paste everything below this comment into “Long description”.
 -->
 
@@ -12,7 +12,7 @@ Craft fills in the slug once, when an entry is new. Rename the entry later and t
 ## What you get
 
 - **A switch in the slug field.** A native Craft lightswitch next to the slug input of entries, categories and Commerce products, on edit pages and in slideouts. While it is on, the slug input is locked and shows the slug the title will get, as you type.
-- **Defaults per type.** Tick the sections, category groups and product types in the settings, or set them per environment in `config/slug-equals-title.php`.
+- **Defaults per type.** Tick the sections, category groups and product types in the settings, or only some entry types of a section. Or set them per environment in `config/slug-equals-title.php`.
 - **Remembered per element.** The switch is stored with the element, so `resave/entries` and other console saves do what the editor decided. Drafts take the choice of their entry.
 - **Craft’s rules.** Slugs are made the way Craft makes them for new entries: the site’s language, `limitAutoSlugsToAscii`, and a unique URI when two titles collide.
 - **Nothing else is touched.** Elements switched off, revisions, Matrix blocks and elements without a title keep their slug.

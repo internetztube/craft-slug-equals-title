@@ -32,6 +32,7 @@ interface Targets {
     category: { path: string };
     product: { path: string } | null;
     settings: string;
+    uids: { news: string, pages: string, topics: string, landingPage: string };
     pagesIndex: string;
     fixtures: { news: { id: number, path: string, pathDe: string }, page: { id: number, path: string } };
 }
@@ -207,21 +208,28 @@ try {
 
     await scenario('The settings page', async () => {
         await visit(targets.settings);
-        const page: { news: boolean, pages: boolean, topicsDisabled: boolean, note: boolean } = await run(`
-            const box = (name, value) => document.querySelector('input[name="settings[' + name + '][]"][value="' + value + '"]');
-            return { news: box('enabledSections', 'news').checked, pages: box('enabledSections', 'pages').checked, topicsDisabled: box('enabledCategoryGroups', 'topics').disabled && box('enabledCategoryGroups', 'topics').checked, note: document.body.textContent.includes('config/slug-equals-title.php') };
+        const { news, pages, topics, landingPage } = targets.uids;
+        const page: { news: boolean, pages: boolean, landing: boolean, landingVisible: boolean, topicsDisabled: boolean, note: boolean } = await run(`
+            window.box = (name, value) => document.querySelector('input[name="settings[' + name + '][]"][value="' + value + '"]');
+            const landing = box('enabledSections', '${pages}:${landingPage}');
+            return { news: box('enabledSections', '${news}').checked, pages: box('enabledSections', '${pages}').checked, landing: landing.checked, landingVisible: landing.getClientRects().length > 0, topicsDisabled: box('enabledCategoryGroups', '${topics}').disabled && box('enabledCategoryGroups', '${topics}').checked, note: document.body.textContent.includes('config/slug-equals-title.php') };
         `);
         check(page.news && !page.pages, 'Sections: News is ticked, Pages is not');
+        check(!page.landing && page.landingVisible, 'under Pages, its entry type "Landing page" is listed, unticked');
+        await run(`box('enabledSections', '${pages}').click(); await sleep(300);`);
+        check(!(await run(`return box('enabledSections', '${pages}:${landingPage}').getClientRects().length > 0;`)), 'ticking the whole section hides its entry types');
+        await run(`box('enabledSections', '${pages}').click(); await sleep(300);`);
+        check(await run(`return box('enabledSections', '${pages}:${landingPage}').getClientRects().length > 0;`), 'unticking it shows them again');
         check(page.topicsDisabled && page.note, 'Category Groups: Topics is ticked but read-only, with the note about config/slug-equals-title.php');
-        await run(`document.querySelector('input[name="settings[enabledSections][]"][value="pages"]').click();`);
+        await run(`box('enabledSections', '${pages}').click();`);
         await saveAndReload(targets.settings);
-        check(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="pages"]').checked;`), 'ticking Pages and saving keeps it ticked');
+        check(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="${pages}"]').checked;`), 'ticking Pages and saving keeps it ticked');
         await visit(targets.fixtures.page.path);
         check((await ui()).on, 'the page entry already switched on (remembered) is still on');
         await visit(targets.settings);
-        await run(`document.querySelector('input[name="settings[enabledSections][]"][value="pages"]').click();`);
+        await run(`document.querySelector('input[name="settings[enabledSections][]"][value="${pages}"]').click();`);
         await saveAndReload(targets.settings);
-        check(!(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="pages"]').checked;`)), 'unticked again');
+        check(!(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="${pages}"]').checked;`)), 'unticked again');
     });
 } finally {
     await browser.close();

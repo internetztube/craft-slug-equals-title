@@ -58,6 +58,10 @@ interface Shot {
     inset?: boolean;
     /** JavaScript run in the page before the capture (may await) */
     act?: string;
+    /** JavaScript expression for the part of the page the cover shows as a close-up (COVER_SHOTS) */
+    cover?: string;
+    /** under that close-up */
+    caption?: string;
 }
 
 /** A box in CSS pixels. */
@@ -82,6 +86,8 @@ interface Taken {
     shot: Shot;
     base: string;
     inset: string | null;
+    cover: string | null;
+    coverRegion: Region | null;
     area: Area;
     address: string;
 }
@@ -114,6 +120,8 @@ const SHOTS: Shot[] = [
         path: targets.news.path,
         points: ['On by default for the sections you pick', 'One switch per entry, in the slug field', 'Craft’s own slug rules, in the site’s language'],
         highlight: SWITCH_AND_SLUG(),
+        cover: `[slugUi().slugField.closest('.meta')]`,
+        caption: 'The switch in the slug field',
     },
     {
         name: 'own-slug',
@@ -122,6 +130,8 @@ const SHOTS: Shot[] = [
         path: targets.about.path,
         points: ['Remembered per entry, drafts included', 'Sections that are off start like this', 'resave/entries respects it'],
         highlight: SWITCH_AND_SLUG(),
+        cover: `[slugUi().slugField.closest('.meta')]`,
+        caption: 'Or keep a slug of your own',
     },
     {
         name: 'slideout',
@@ -149,11 +159,14 @@ const SHOTS: Shot[] = [
     {
         name: 'settings',
         title: 'Defaults per section',
-        text: 'Pick the sections, category groups and product types whose elements follow their title. Or set them per environment in config/slug-equals-title.php.',
+        text: 'Pick the sections, category groups and product types whose elements follow their title, or single entry types of a section. Or set them per environment in config/slug-equals-title.php.',
         path: targets.settings,
-        points: ['Sections, category groups, product types', 'Overridable in a config file', 'Every element can still decide for itself'],
+        points: ['Sections, entry types, category groups, product types', 'Overridable in a config file', 'Every element can still decide for itself'],
         highlight: `[$$('#content .field')]`,
         inset: false,
+        // the fields span the content pane; the close-up takes their left 800px, enough for the longest line
+        cover: `(() => { const r = regionOf($$('#content .field')); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + 800, bottom: r.y + r.height }) }]; })()`,
+        caption: 'Defaults per section, entry type, group',
     },
 ];
 
@@ -327,6 +340,70 @@ function frameHtml({ shot, base, inset, area, address }: Taken): string {
     </body></html>`;
 }
 
+/** The three close-ups of the cover: two stacked on the left, the tall one on the right. */
+const COVER_SHOTS = ['edit-page', 'own-slug', 'settings'];
+/** What the cover promises, under the title. */
+const COVER_CHIPS = ['Entries, categories, products', 'Per section, entry type or element', 'Three test suites, 100 % covered', 'Craft CMS 5'];
+
+/** The cover for the README and the Plugin Store: the plugin's name over three close-ups of the control panel. */
+function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): string {
+    const top = 450, bottom = 1150, gap = 32, caption = 40, margin = 88;
+    type Card = typeof cards[number];
+    const ratio = (card: Card) => card.coverRegion.height / card.coverRegion.width;
+    const height = (card: Card, w: number) => Math.round(ratio(card) * w);
+    const [first, second, tall] = cards;
+    const layout = (width: number) => {
+        const right = ((width - gap) * (ratio(first) + ratio(second)) + caption + gap) / (ratio(first) + ratio(second) + ratio(tall));
+        const left = width - gap - right;
+        const x = Math.round((FRAME.width - width) / 2);
+        return {
+            slots: [
+                { card: first, left: x, top, width: Math.round(left) },
+                { card: second, left: x, top: top + caption + height(first, left) + gap, width: Math.round(left) },
+                { card: tall, left: x + Math.round(left) + gap, top, width: Math.round(right) },
+            ],
+            bottom: top + caption + height(tall, right),
+        };
+    };
+    // as wide as the stage allows, and no taller than the stage
+    const maxWidth = FRAME.width - 2 * margin;
+    let { slots, bottom: end } = layout(maxWidth);
+    if (end !== bottom) {
+        ({ slots } = layout(Math.min(maxWidth, Math.round(maxWidth * (bottom - top) / (end - top)))));
+    }
+    const crops = slots.map(({ card, left, top, width }) => `<figure class="crop" style="left:${left}px;top:${top}px;width:${width}px">
+        <figcaption><i></i>${escapeHtml(card.shot.caption ?? card.shot.title)}</figcaption>
+        <div class="pic"><img src="${pathToFileURL(card.cover).href}" alt="" style="width:${width}px;height:${height(card, width)}px"></div>
+    </figure>`).join('');
+    const chips = COVER_CHIPS.map((chip) => `<span>${escapeHtml(chip)}</span>`).join('');
+    return `<!doctype html><html><head><meta charset="utf-8"><style>
+        ${PAGE_CSS}
+        .head { position: absolute; left: 0; right: 0; top: 72px; text-align: center; }
+        .head img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 20px 50px rgba(0, 0, 0, .5); }
+        h1 { margin: 22px 0 12px; font-size: 72px; letter-spacing: -.035em; }
+        p { font-size: 25px; }
+        .chips { margin-top: 24px; display: flex; justify-content: center; gap: 12px; }
+        .chips span { padding: 8px 16px; border-radius: 99px; font-size: 15px; font-weight: 600; color: #e7f0ea;
+            background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .16); }
+        .spot { position: absolute; left: 50%; top: ${top + 120}px; width: 1500px; height: 700px; transform: translateX(-50%); pointer-events: none;
+            background: radial-gradient(closest-side, rgba(46, 194, 126, .16), transparent); filter: blur(40px); }
+        .crop { position: absolute; margin: 0; }
+        .pic { border-radius: 14px; overflow: hidden; background: #fff;
+            box-shadow: 0 60px 120px -30px rgba(0, 0, 0, .8), 0 20px 40px -20px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .6); }
+        .pic img { display: block; }
+        figcaption { height: ${caption}px; display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; letter-spacing: .01em; color: #eef1f8; }
+        figcaption i { width: 9px; height: 9px; border-radius: 50%; background: ${ACCENT}; box-shadow: 0 0 10px rgba(46, 194, 126, .9); }
+    </style></head><body>
+        <div class="head">
+            <img src="${PLUGIN_ICON}" alt=""><h1>Slug Equals Title</h1>
+            <p>The slug follows the title in Craft CMS. Per section by default, per entry when you want.</p>
+            <div class="chips">${chips}</div>
+        </div>
+        <div class="spot"></div>
+        ${crops}
+    </body></html>`;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------------------------------------------------
@@ -360,7 +437,13 @@ try {
             inset = join(workDir, `${shot.name}-inset.png`);
             writeFileSync(inset, await capture(browser, { ...area.inset, x: area.inset.x + area.scroll.x, y: area.inset.y + area.scroll.y }));
         }
-        taken.push({ shot, base, inset, area, address: `example.test${shot.path.replace(/\?.*$/, '')}` });
+        let cover = null, coverRegion = null;
+        if (shot.cover) {
+            coverRegion = await evaluate(browser, `return regionOf(${shot.cover}, 4);`) as Region;
+            cover = join(workDir, `${shot.name}-cover.png`);
+            writeFileSync(cover, await capture(browser, { ...coverRegion, x: coverRegion.x + area.scroll.x, y: coverRegion.y + area.scroll.y }));
+        }
+        taken.push({ shot, base, inset, cover, coverRegion, area, address: `example.test${shot.path.replace(/\?.*$/, '')}` });
         console.log(`  shot ${shot.name}`);
     }
 
@@ -372,6 +455,16 @@ try {
         const target = resolve(outDir, `${card.shot.name}.jpg`);
         writeFileSync(target, await captureViewport(browser, 'jpeg'));
         console.log(`  framed ${target}`);
+    }
+
+    // the cover: three of the shots, when they were all taken in this run
+    const coverCards = COVER_SHOTS.map((name) => taken.find((t) => t.shot.name === name && t.cover));
+    if (coverCards.every(Boolean)) {
+        const html = join(workDir, 'cover.html');
+        writeFileSync(html, coverHtml(coverCards as (Taken & { cover: string, coverRegion: Region })[]));
+        await open(browser, pathToFileURL(html).href);
+        writeFileSync(resolve(outDir, 'cover.jpg'), await captureViewport(browser, 'jpeg'));
+        console.log(`  cover ${resolve(outDir, 'cover.jpg')}`);
     }
 } finally {
     await browser.close();

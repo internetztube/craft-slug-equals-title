@@ -4,14 +4,14 @@
 
 Craft fills in the slug once, when an entry is new. Rename the entry later and the slug stays behind. This plugin keeps the two together: for the sections, category groups and product types you pick, every save sets the slug from the title. Each entry has a switch in its slug field to opt out (or in) and keep a slug of its own.
 
-![The slug follows the title: the switch in the slug field, the locked slug input previews the title](docs/screenshots/edit-page.jpg)
+![Slug Equals Title: the switch in the slug field, a slug of your own, the defaults per section](docs/screenshots/cover.jpg)
 
 [Tour with screenshots](docs/README.md) · [Installation](#installation) · [How it decides](#how-it-decides) · [Configuration](#configuration)
 
 ## What you get
 
 - **A switch in the slug field.** A native Craft lightswitch next to the slug input of entries, categories and Commerce products, on edit pages and in slideouts. While it is on, the slug input is locked and shows the slug the title will get, as you type.
-- **Defaults per type.** Tick the sections, category groups and product types in the plugin settings, or set them per environment in `config/slug-equals-title.php`. Elements of those types follow their title unless their switch says otherwise.
+- **Defaults per type.** Tick the sections, category groups and product types in the plugin settings, or only some entry types of a section. Or set them per environment in `config/slug-equals-title.php`. Elements of those types follow their title unless their switch says otherwise.
 - **Remembered per element.** The switch is stored with the element, so `php craft resave/entries` and other console saves do what the editor decided. Drafts take the choice of their entry until they make their own.
 - **Craft's rules.** The slug is made the way Craft makes it for new entries: the site's language (ß → ss, ü → ue in German sites), `limitAutoSlugsToAscii`, and a unique URI (`-2`) when two titles collide.
 - **Nothing else is touched.** Elements switched off, revisions, nested entries (Matrix) and elements without a title keep their slug.
@@ -55,11 +55,13 @@ Copy [`src/config.php`](src/config.php) to `config/slug-equals-title.php` to set
 
 ```php
 return [
-    'enabledSections' => ['news', 'blog'],   // section handles
-    'enabledCategoryGroups' => ['topics'],   // category group handles
-    'enabledProductTypes' => [],             // Craft Commerce product type handles
+    'enabledSections' => ['news', 'pages:landingPage'],   // sections, or "section:entryType"
+    'enabledCategoryGroups' => ['topics'],               // category groups
+    'enabledProductTypes' => [],                         // Craft Commerce product types
 ];
 ```
+
+Types are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere. Settings saved by 3.0 are converted to UIDs by the update.
 
 ## Supported element types
 

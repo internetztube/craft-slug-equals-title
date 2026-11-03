@@ -17,6 +17,7 @@ use craft\elements\Entry;
 use craft\helpers\Db;
 use internetztube\slugEqualsTitle\migrations\Install;
 use internetztube\slugEqualsTitle\migrations\m261103_120000_elements_table;
+use internetztube\slugEqualsTitle\migrations\m261103_130000_settings_uids;
 use internetztube\slugEqualsTitle\models\Settings;
 use internetztube\slugEqualsTitle\services\SlugService;
 use internetztube\slugEqualsTitle\SlugEqualsTitle;
@@ -66,14 +67,17 @@ $save = function(ElementInterface $element, bool $validate = true) use ($element
 $reload = fn(ElementInterface $element, ?int $siteId = null): ElementInterface => $element::find()->id($element->id)->siteId($siteId ?? $element->siteId)->status(null)->drafts(null)->one() ?? throw new RuntimeException("Element $element->id is gone");
 $make = function(string $section, string $title, array $attributes = []) use ($save): Entry {
     $sectionModel = Craft::$app->getEntries()->getSectionByHandle($section) ?? throw new RuntimeException("No section $section");
-    $entry = new Entry(['sectionId' => $sectionModel->id, 'typeId' => $sectionModel->getEntryTypes()[0]->id, 'title' => $title] + $attributes);
+    $entry = new Entry($attributes + ['sectionId' => $sectionModel->id, 'typeId' => $sectionModel->getEntryTypes()[0]->id, 'title' => $title]);
     $save($entry);
     return $entry;
 };
 $rows = fn(ElementInterface $element): array => (new Query())->select(['enabled'])->from(SlugService::TABLE)->where(['elementId' => $element->id])->column();
 
 echo "Settings\n";
-check($settings->enabledSections === ['news'] && $settings->enabledProductTypes === ($commerce ? ['clothing'] : []), 'the seeded settings: News' . ($commerce ? ' and Clothing' : '') . ' on by default');
+$newsSection = Craft::$app->getEntries()->getSectionByHandle('news') ?? throw new RuntimeException('Run the seed first');
+$pagesSection = Craft::$app->getEntries()->getSectionByHandle('pages') ?? throw new RuntimeException('Run the seed first');
+$clothingUid = $commerce ? \craft\commerce\Plugin::getInstance()->getProductTypes()->getProductTypeByHandle('clothing')->uid : null;
+check($settings->enabledSections === [$newsSection->uid] && $settings->enabledProductTypes === ($commerce ? [$clothingUid] : []), 'the seeded settings: News' . ($commerce ? ' and Clothing' : '') . ' on by default, stored by UID');
 check($settings->enabledCategoryGroups === ['topics'] && Craft::$app->getProjectConfig()->get('plugins.slug-equals-title.settings.enabledCategoryGroups') === null, 'config/slug-equals-title.php overrides the category groups of the stored settings');
 $model = new Settings();
 $model->setAttributes(['enabledSections' => '', 'enabledCategoryGroups' => [';', 'topics', 3], 'enabledProductTypes' => null], false);
@@ -81,6 +85,9 @@ check($model->enabledSections === [] && $model->enabledCategoryGroups === ['topi
 check(in_array(Entry::class, SlugService::elementTypes(), true) && in_array(Category::class, SlugService::elementTypes(), true) && in_array($productClass, SlugService::elementTypes(), true) === $commerce, 'entries, categories' . ($commerce ? ' and products' : '') . ' are the supported element types');
 check(array_keys(SlugService::settingGroups()) === array_merge(['enabledSections', 'enabledCategoryGroups'], $commerce ? ['enabledProductTypes'] : []), 'the settings page lists sections, category groups' . ($commerce ? ' and product types' : ''));
 check(in_array('news', array_column(SlugService::settingGroups()['enabledSections']['types'], 'handle'), true), 'with the sections of the site');
+check(SlugService::settingKeys(new craft\elements\Asset()) === [] && !$slugs->isEnabledByDefault(new craft\elements\Asset()) && !$slugs->supports(new craft\elements\Asset()), 'other element types (assets, users) have no setting and are never followed');
+$landing = Craft::$app->getEntries()->getEntryTypeByHandle('landingPage') ?? throw new RuntimeException('Run the seed first');
+check(count($pagesSection->getEntryTypes()) === 2, 'the Pages section has two entry types (Page, Landing page)');
 
 echo "Defaults per type\n";
 $a = $make('news', 'Smoke: Hello, World!');
@@ -98,6 +105,18 @@ $save($p);
 check($reload($p)->slug === 'smoke-page', 'and keeps it when its title changes');
 check($slugs->isEnabled($a) && !$slugs->isEnabled($p) && $slugs->isEnabledByDefault($a) && !$slugs->isEnabledByDefault($p), 'isEnabled() follows the defaults of the types while nothing is remembered');
 check($rows($a) === [] && $rows($p) === [], 'console saves remember nothing (no edit form)');
+
+echo "Entry types and handles\n";
+$landingEntry = $make('pages', 'Smoke: Landing', ['typeId' => $landing->id, 'slug' => 'smoke-landing']);
+check(SlugService::settingKeys($landingEntry) === [$pagesSection->uid, 'pages', "$pagesSection->uid:$landing->uid", 'pages:landingPage'], 'an entry matches its section and its entry type, by UID and by handle (' . implode(', ', SlugService::settingKeys($landingEntry)) . ')');
+$settings->enabledSections = [$newsSection->uid, "$pagesSection->uid:$landing->uid"];
+check($slugs->isEnabledByDefault($landingEntry) && !$slugs->isEnabledByDefault($p), 'a single entry type of a section can be on while the rest of the section is off');
+$landingEntry->title = 'Smoke: Landing renamed';
+$save($landingEntry);
+check($reload($landingEntry)->slug === 'smoke-landing-renamed', 'and its entries follow their title');
+$settings->enabledSections = ['news', 'pages:landingPage'];
+check($slugs->isEnabledByDefault($a) && $slugs->isEnabledByDefault($landingEntry) && !$slugs->isEnabledByDefault($p), 'handles work too (config/slug-equals-title.php, settings saved before 3.1)');
+$settings->enabledSections = [$newsSection->uid];
 
 echo "Remembered choice\n";
 $slugs->setEnabled($p, true);
@@ -240,6 +259,36 @@ ob_start();
 $down = (new m261103_120000_elements_table())->down();
 ob_end_clean();
 check($down === false, 'the migration cannot be reverted');
+
+echo "Settings migration\n";
+$projectConfig = Craft::$app->getProjectConfig();
+$converted = m261103_130000_settings_uids::toUids(['enabledSections' => ['news', ';', 'gone', $pagesSection->uid, 'news', 5], 'enabledCategoryGroups' => ['topics'], 'enabledProductTypes' => 7]);
+check($converted['enabledSections'] === [$newsSection->uid, $pagesSection->uid] && $converted['enabledCategoryGroups'] === [$topics->uid] && $converted['enabledProductTypes'] === [], 'handles become UIDs; UIDs stay; the ";" placeholder, unknown handles, duplicates and junk are dropped');
+ob_start();
+$migratedUids = (new m261103_130000_settings_uids())->safeUp();
+ob_end_clean();
+check($migratedUids && $settings->enabledSections === [$newsSection->uid], 'the migration leaves an environment alone whose project config already has this schema version (the YAML carries the change)');
+$yamlVersion = $projectConfig->get('plugins.slug-equals-title.schemaVersion', true);
+$projectConfig->set('plugins.slug-equals-title.schemaVersion', '1.1.0');
+$projectConfig->set('plugins.slug-equals-title.settings', ['enabledSections' => ['news', ';'], 'enabledCategoryGroups' => ['regions']]);
+// the migration reads the YAML (what a deployment carries): write it and drop the memoized copy, as a new request would
+$projectConfig->saveModifiedConfigData();
+$projectConfig->writeYamlFiles(true);
+$projectConfig->reset();
+ob_start();
+$migratedUids = (new m261103_130000_settings_uids())->safeUp();
+ob_end_clean();
+$stored = $projectConfig->get('plugins.slug-equals-title.settings');
+check($migratedUids && ($stored['enabledSections'] ?? null) === [$newsSection->uid] && ($stored['enabledCategoryGroups'] ?? null) === [$regions->uid], 'on an older schema version it converts the stored settings to UIDs');
+$projectConfig->set('plugins.slug-equals-title.schemaVersion', $yamlVersion);
+$projectConfig->set('plugins.slug-equals-title.settings', ['enabledSections' => [$newsSection->uid], 'enabledProductTypes' => $commerce ? [$clothingUid] : []]);
+$projectConfig->saveModifiedConfigData();
+$projectConfig->writeYamlFiles(true);
+$projectConfig->reset();
+ob_start();
+$down = (new m261103_130000_settings_uids())->down();
+ob_end_clean();
+check($down === false, 'it cannot be reverted');
 
 echo "Install\n";
 $install = new Install();

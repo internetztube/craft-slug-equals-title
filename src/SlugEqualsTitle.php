@@ -30,7 +30,7 @@ use yii\base\Event;
  */
 class SlugEqualsTitle extends Plugin
 {
-    public string $schemaVersion = '1.1.0';
+    public string $schemaVersion = '1.2.0';
     public bool $hasCpSettings = true;
 
     /** The switch's input on edit forms: "1" (slug from the title) or "" (keep the slug); the name since 1.x. */

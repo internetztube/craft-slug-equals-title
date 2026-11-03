@@ -18,7 +18,7 @@ use yii\base\InvalidConfigException;
 
 /**
  * Whether an element's slug follows its title: the element's remembered choice (its own, else its canonical
- * element's), else the default of its section, category group or product type from the plugin settings.
+ * element's), else the default of its section (or entry type), category group or product type from the plugin settings.
  */
 final class SlugService extends Component
 {
@@ -74,17 +74,45 @@ final class SlugService extends Component
         };
     }
 
+    /**
+     * Every value in a setting that means this element's type: the type's UID (what the settings page stores) and
+     * handle (config/slug-equals-title.php, settings saved before 3.1), and for entries also "section:entryType" as
+     * UIDs and as handles. Empty for nested entries (no section).
+     * @return list<string>
+     */
+    public static function settingKeys(ElementInterface $element): array
+    {
+        if ($element instanceof Entry) {
+            $section = $element->getSection();
+            if ($section === null) {
+                return [];
+            }
+            $entryType = $element->getType();
+            return [(string)$section->uid, (string)$section->handle, "$section->uid:$entryType->uid", "$section->handle:$entryType->handle"];
+        }
+        $type = match (true) {
+            $element instanceof Category => $element->getGroup(),
+            $element instanceof Product => $element->getType(),
+            default => null,
+        };
+        return $type === null ? [] : [(string)$type->uid, (string)$type->handle];
+    }
+
     /** Entries of a section, categories and products; not nested entries (Matrix) and not other element types. */
     public function supports(ElementInterface $element): bool
     {
         return self::typeHandle($element) !== null;
     }
 
-    /** The default for the element's type, from the settings. */
+    /** The default for the element's type, from the settings (see settingKeys()). */
     public function isEnabledByDefault(ElementInterface $element): bool
     {
         $setting = self::settingName($element);
-        return $setting !== null && in_array(self::typeHandle($element), (SlugEqualsTitle::getInstance() ?? throw new InvalidConfigException('Plugin not loaded'))->getSettings()->$setting, true);
+        if ($setting === null) {
+            return false;
+        }
+        $enabled = (SlugEqualsTitle::getInstance() ?? throw new InvalidConfigException('Plugin not loaded'))->getSettings()->$setting;
+        return array_intersect(self::settingKeys($element), $enabled) !== [];
     }
 
     /** The element's remembered choice (a draft falls back to its canonical element's), else the type's default. */

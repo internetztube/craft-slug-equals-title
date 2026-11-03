@@ -1,5 +1,7 @@
 # Slug Equals Title: a tour
 
+![Slug Equals Title](screenshots/cover.jpg)
+
 Every part of the plugin, shown in the dev project that `dev/dev.sh` builds (a travel site with a News section, a Pages section, a German site and a Commerce product type). Each picture shows the whole control panel page; where the feature is small, an inset zooms in. `dev/dev.sh screenshots` retakes every picture on this page.
 
 ## The slug follows the title
@@ -28,6 +30,6 @@ The dev project's front end: every article, page, topic and product with its add
 
 ## Defaults per section
 
-Tick the sections, category groups and product types whose elements follow their title. Lists set in `config/slug-equals-title.php` win and are shown read-only.
+Tick the sections, category groups and product types whose elements follow their title. A section with several entry types lists them under it, so one entry type can be on while the rest of the section is off. Lists set in `config/slug-equals-title.php` win and are shown read-only.
 
 ![Defaults per section](screenshots/settings.jpg)

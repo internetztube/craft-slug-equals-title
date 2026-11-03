@@ -284,7 +284,12 @@ $sites = [$primary, $de];
 $articleType = ensureEntryType('Article', 'article');
 $news = ensureSection('News', 'news', Section::TYPE_CHANNEL, $articleType, $sites);
 $pageType = ensureEntryType('Page', 'page');
+$landingType = ensureEntryType('Landing page', 'landingPage');
 $pages = ensureSection('Pages', 'pages', Section::TYPE_STRUCTURE, $pageType, $sites);
+if (count($pages->getEntryTypes()) < 2) {
+    $pages->setEntryTypes([$pageType, $landingType]); // a section with two entry types: the settings list them under it
+    Craft::$app->getEntries()->saveSection($pages) or fail($pages);
+}
 ensureSection('Home', 'home', Section::TYPE_SINGLE, ensureEntryType('Home', 'home', showSlugField: false), $sites);
 addFieldToLayout(ensureMatrixField('Blocks', 'blocks', ensureEntryType('Text block', 'textBlock')), $pageType);
 $topics = ensureCategoryGroup('Topics', 'topics', $sites);
@@ -320,9 +325,10 @@ foreach ([...Craft::$app->getEntries()->getAllSections(), ...Craft::$app->getCat
     }
 }
 
-// --- plugin settings: News and Clothing in the control panel settings, Topics through the config file
+// --- plugin settings (by UID, as the settings page stores them): News and Clothing in the control panel settings,
+// Topics through the config file (by handle)
 $plugin = SlugEqualsTitle::getInstance();
-$settings = ['enabledSections' => ['news'], 'enabledCategoryGroups' => [], 'enabledProductTypes' => $productType ? ['clothing'] : []];
+$settings = ['enabledSections' => [$news->uid], 'enabledCategoryGroups' => [], 'enabledProductTypes' => $productType ? [$productType->uid] : []];
 $current = $plugin->getSettings()->toArray();
 if ($current['enabledSections'] !== $settings['enabledSections'] || $current['enabledProductTypes'] !== $settings['enabledProductTypes']) {
     Craft::$app->getPlugins()->savePluginSettings($plugin, $settings) or fail($plugin->getSettings());
