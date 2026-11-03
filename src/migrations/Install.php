@@ -1,68 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace internetztube\slugEqualsTitle\migrations;
 
-use Craft;
 use craft\db\Migration;
+use craft\db\Table;
+use internetztube\slugEqualsTitle\services\SlugService;
 
-class Install extends Migration
+final class Install extends Migration
 {
-    public $driver;
-
-    public function safeUp()
+    public function safeUp(): bool
     {
-        $this->driver = Craft::$app->getConfig()->getDb()->driver;
-        if ($this->createTables()) {
-            $this->addForeignKeys();
-            // Refresh the db schema caches
-            Craft::$app->db->schema->refresh();
+        if (!$this->db->tableExists(SlugService::TABLE)) {
+            self::createElementsTable($this);
         }
         return true;
     }
 
-    public function safeDown()
+    public function safeDown(): bool
     {
-        $this->driver = Craft::$app->getConfig()->getDb()->driver;
-        $this->removeTables();
+        $this->dropTableIfExists(SlugService::TABLE);
         return true;
     }
 
-    protected function createTables()
+    /** The table of remembered choices (SlugService::TABLE); also built by the migration from the 3.0 table. */
+    public static function createElementsTable(Migration $migration): void
     {
-        $tablesCreated = false;
-        $tableSchema = Craft::$app->db->schema->getTableSchema('{{%slugEqualsTitle_shouldRewrite}}');
-        if ($tableSchema === null) {
-            $tablesCreated = true;
-            $this->createTable(
-                '{{%slugEqualsTitle_shouldRewrite}}',
-                [
-                    'id' => $this->primaryKey(),
-                    'dateCreated' => $this->dateTime()->notNull(),
-                    'dateUpdated' => $this->dateTime()->notNull(),
-                    'uid' => $this->uid(),
-                    'elementId' => $this->integer()->notNull(),
-                    'enabled' => $this->boolean()->notNull(),
-                ]
-            );
-        }
-        return $tablesCreated;
-    }
-
-    protected function addForeignKeys()
-    {
-        $this->addForeignKey(
-            $this->db->getForeignKeyName('{{%slugEqualsTitle_shouldRewrite}}', 'elementId'),
-            '{{%slugEqualsTitle_shouldRewrite}}',
-            'elementId',
-            '{{%elements}}',
-            'id',
-            'CASCADE',
-            'CASCADE'
-        );
-    }
-
-    protected function removeTables()
-    {
-        $this->dropTableIfExists('{{%slugEqualsTitle_shouldRewrite}}');
+        $migration->createTable(SlugService::TABLE, [
+            'id' => $migration->primaryKey(),
+            'elementId' => $migration->integer()->notNull(),
+            'enabled' => $migration->boolean()->notNull(),
+            'dateCreated' => $migration->dateTime()->notNull(),
+            'dateUpdated' => $migration->dateTime()->notNull(),
+            'uid' => $migration->uid(),
+        ]);
+        $migration->createIndex(null, SlugService::TABLE, ['elementId'], true);
+        $migration->addForeignKey(null, SlugService::TABLE, ['elementId'], Table::ELEMENTS, ['id'], 'CASCADE');
     }
 }

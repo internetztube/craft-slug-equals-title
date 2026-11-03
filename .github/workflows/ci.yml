@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  phpstan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: dev/dev.sh typecheck
+
+  smoke:
+    # A real Craft 5 project with the plugin and Craft Commerce (dev/plugins.txt), seeded, then the console smoke test,
+    # the control panel over HTTP and the control panel in headless Chrome. Same script as local development:
+    # `dev/dev.sh coverage` (= `dev/dev.sh ci` with line coverage of src/).
+    name: smoke (PHP ${{ matrix.php }}, ${{ matrix.db }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3']
+        db: [mysql, pgsql]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: craft
+          MYSQL_DATABASE: craft
+        ports: ['3306:3306']
+        options: --health-cmd "mysqladmin ping -uroot -pcraft" --health-interval 5s --health-timeout 5s --health-retries 20
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: craft
+          POSTGRES_PASSWORD: craft
+          POSTGRES_DB: craft
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PROJECT_DIR: ${{ github.workspace }}/app
+      DB_DRIVER: ${{ matrix.db }}
+      DB_NAME: craft
+      DB_USER: ${{ matrix.db == 'mysql' && 'root' || 'craft' }}
+      DB_PASSWORD: craft
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: plugin
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, pdo_mysql, pdo_pgsql, gd, bcmath, zip, mbstring
+          ini-values: memory_limit=1G
+          coverage: pcov
+      - uses: actions/setup-node@v4 # the Chrome suite is TypeScript, run as it is (Node 24)
+        with:
+          node-version: '24'
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('plugin/dev/plugins.txt', 'plugin/composer.json') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-
+      - name: Install Craft and Commerce, seed, run smoke, e2e and the Chrome suite with line coverage of src/
+        run: plugin/dev/dev.sh coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ matrix.db }}-php${{ matrix.php }}
+          path: app/storage/coverage/html
+          if-no-files-found: ignore

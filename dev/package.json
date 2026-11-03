@@ -1,0 +1,8 @@
+{
+    "private": true,
+    "description": "Type checking of the dev scripts (dev/*.mts, dev/dev.sh typecheck); Node 24 runs them without it.",
+    "devDependencies": {
+        "@types/node": "^24.0.0",
+        "typescript": "~5.9.3"
+    }
+}

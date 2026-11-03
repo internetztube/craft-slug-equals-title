@@ -1,37 +1,18 @@
-{% import "_includes/forms" as forms %}
+{% import '_includes/forms.twig' as forms %}
 
-<h2>Slug equals Title</h2>
-<p>For each type selected here, the slug is overwritten by default. You can overwrite this default value manually in the edit form.</p>
+<p>{{ 'For the types you tick, the slug of a new element follows its title. Every element can decide for itself with the switch in its slug field.'|t('slug-equals-title') }}</p>
 
-{% if sections | length %}
-    {{ forms.checkboxSelectField({
-        label: "Sections",
-        options: sections,
-        name: "enabledSections",
-        showAllOption: false,
-    }) }}
-    <input type="hidden" name="enabledSections[]" value=";" />
-{% endif %}
-
-{% if categoryGroups | length %}
-    {{ forms.checkboxSelectField({
-        label: "Category Groups",
-        options: categoryGroups,
-        name: "enabledCategoryGroups",
-        showAllOption: false,
-    }) }}
-    <input type="hidden" name="enabledCategoryGroups[]" value=";" />
-{% endif %}
-
-{% if productTypes is defined and productTypes | length %}
-    {{ forms.checkboxSelectField({
-        label: "Product Types",
-        options: productTypes,
-        name: "enabledProductTypes",
-        showAllOption: false,
-    }) }}
-    <input type="hidden" name="enabledProductTypes[]" value=";" />
-{% endif %}
-
-
-
+{% for name, group in groups %}
+    {% if group.types|length %}
+        {{ forms.checkboxSelectField({
+            label: group.label,
+            name: name,
+            options: group.types|map(type => { label: type.name, value: type.handle }),
+            values: attribute(settings, name),
+            showAllOption: false,
+            disabled: name in overrides,
+            warning: name in overrides ? 'This is being overridden by the {name} setting in config/slug-equals-title.php.'|t('slug-equals-title', { name: name }),
+            errors: settings.getErrors(name),
+        }) }}
+    {% endif %}
+{% endfor %}

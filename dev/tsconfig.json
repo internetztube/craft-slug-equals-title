@@ -1,0 +1,17 @@
+{
+    // The dev scripts run as TypeScript straight in Node 24 (type stripping, no build step); this file is for
+    // type checking only: tsc -p dev (dev/dev.sh typecheck).
+    "compilerOptions": {
+        "target": "es2024",
+        "module": "nodenext",
+        "lib": ["es2024", "dom", "dom.iterable"],
+        "types": ["node"],
+        "strict": true,
+        "noEmit": true,
+        "allowImportingTsExtensions": true,
+        "erasableSyntaxOnly": true,
+        "verbatimModuleSyntax": true,
+        "skipLibCheck": true
+    },
+    "include": ["*.mts"]
+}

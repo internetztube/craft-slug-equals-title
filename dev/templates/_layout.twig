@@ -1,0 +1,53 @@
+{# The demo site's frame: a travel journal whose addresses follow its titles (dev/templates/README.md). #}
+<!doctype html>
+<html lang="{{ currentSite.language }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title ?? siteName }} · {{ siteName }}</title>
+    <style>
+        :root { --ink: #111; --quiet: #666; --rule: #ddd; --accent: #1f9d5c; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+        * { box-sizing: border-box; }
+        body { margin: 0; color: var(--ink); background: #fff; font: 16px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+        a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+        a:hover { color: var(--accent); }
+        header, main, footer { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+        header { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding-top: 28px; padding-bottom: 14px; border-bottom: 1px solid var(--ink); }
+        header .brand { font-weight: 700; text-decoration: none; }
+        header nav a { margin-left: 18px; font-size: 15px; }
+        h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 40px 0 10px; }
+        h2 { font-size: 15px; font-weight: 600; margin: 44px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--ink); }
+        .lead { font-size: 18px; color: var(--quiet); margin: 0 0 8px; max-width: 60ch; }
+        .uri { font: 14px/1.4 var(--mono); color: var(--quiet); margin: 0; }
+        .uri b { color: var(--ink); font-weight: 500; }
+        .rows { list-style: none; margin: 0; padding: 0; }
+        .rows li { display: grid; grid-template-columns: 1fr auto; column-gap: 20px; row-gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+        .rows li a { grid-column: 1; }
+        .rows li .uri { grid-column: 1; }
+        .rows li .how { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 13px; color: var(--quiet); white-space: nowrap; }
+        .rows li .how.on { color: var(--accent); }
+        .prose p { max-width: 65ch; }
+        .meta { margin-top: 36px; font-size: 14px; color: var(--quiet); }
+        footer { margin-top: 70px; padding-top: 14px; padding-bottom: 40px; border-top: 1px solid var(--ink); font-size: 14px; color: var(--quiet); }
+        @media (max-width: 600px) { .rows li { grid-template-columns: 1fr; } .rows li .how { grid-column: 1; grid-row: auto; } h1 { font-size: 28px; } }
+    </style>
+</head>
+<body>
+<header>
+    <a class="brand" href="{{ siteUrl }}">{{ siteName }}</a>
+    <nav>
+        <a href="{{ siteUrl }}#journal">Journal</a>
+        <a href="{{ siteUrl }}#topics">Topics</a>
+        <a href="{{ siteUrl }}#shop">Shop</a>
+        {% for page in craft.entries().section('pages').all() %}<a href="{{ page.url }}">{{ page.title }}</a>{% endfor %}
+    </nav>
+</header>
+<main>
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    {{ siteName }} · {% for site in craft.app.sites.allSites %}<a href="{{ site.baseUrl }}">{{ site.name }}</a>{{ not loop.last ? ' · ' }}{% endfor %}
+    · <a href="{{ cpUrl('settings/plugins/slug-equals-title') }}">Plugin settings</a>
+</footer>
+</body>
+</html>

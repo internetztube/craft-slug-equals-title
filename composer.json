@@ -1,24 +1,27 @@
 {
     "name": "internetztube/craft-slug-equals-title",
-    "description": "This plugin makes sure that the slug is always the same as the title.",
+    "description": "Keeps the slug equal to the title: per section, category group or product type by default, and per element with a switch under the slug field.",
     "type": "craft-plugin",
-    "version": "3.0.1",
+    "version": "3.1.0",
     "keywords": [
         "craft",
         "cms",
         "craftcms",
         "craft-plugin",
+        "slug",
+        "title",
         "slug equals title"
     ],
     "support": {
-        "docs": "https://github.com/internetztube/slug-equals-title/blob/master/README.md",
-        "issues": "https://github.com/internetztube/slug-equals-title/issues"
+        "docs": "https://github.com/internetztube/craft-slug-equals-title/blob/3.x/README.md",
+        "issues": "https://github.com/internetztube/craft-slug-equals-title/issues",
+        "source": "https://github.com/internetztube/craft-slug-equals-title"
     },
     "license": "MIT",
     "authors": [
         {
-            "name": "Frederic Köberl",
-            "homepage": "https://frederickoeberl.com"
+            "name": "Frederic Koeberl",
+            "homepage": "https://frederickoeberl.com/"
         }
     ],
     "require": {
@@ -26,15 +29,28 @@
     },
     "autoload": {
         "psr-4": {
-          "internetztube\\slugEqualsTitle\\": "src/"
+            "internetztube\\slugEqualsTitle\\": "src/"
         }
     },
     "extra": {
         "name": "Slug Equals Title",
         "handle": "slug-equals-title",
-        "changelogUrl": "https://raw.githubusercontent.com/internetztube/craft-slug-equals-title/master/CHANGELOG.md",
+        "developer": "Frederic Koeberl",
+        "developerUrl": "https://frederickoeberl.com/",
+        "documentationUrl": "https://github.com/internetztube/craft-slug-equals-title/blob/3.x/README.md",
+        "changelogUrl": "https://raw.githubusercontent.com/internetztube/craft-slug-equals-title/3.x/CHANGELOG.md",
         "class": "internetztube\\slugEqualsTitle\\SlugEqualsTitle"
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    },
+    "require-dev": {
+        "craftcms/phpstan": "dev-main",
+        "phpstan/phpstan": "^2.3"
+    }
 }

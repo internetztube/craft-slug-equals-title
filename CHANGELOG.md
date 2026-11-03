@@ -1,5 +1,32 @@
 # Slug Equals Title Changelog
+
 All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/) and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## Unreleased
+
+## 3.1.0 - 2026-11-03
+
+A rewrite under the hood that keeps the behaviour: less code (no asset bundle, no build step, no record class) and three test suites.
+
+### Added
+- The switch is a native Craft lightswitch in the slug field, next to its input, on edit pages and in slideouts. While it is on, the slug field reads “Overwritten by title”, as before. Revisions show it read-only. [#23](https://github.com/internetztube/craft-slug-equals-title/pull/23)
+- `config/slug-equals-title.php` sets the defaults per environment (see [`src/config.php`](src/config.php)); the settings page shows overridden lists read-only.
+- A draft follows the choice of its canonical entry until its own switch is changed.
+- German translation.
+- Three test suites run on every push, on PHP 8.2 and 8.3, MySQL and PostgreSQL, with 100 % line coverage of `src/`: the console, the control panel over HTTP, and the control panel in headless Chrome. [`dev/TESTS.md`](dev/TESTS.md) lists every check.
+
+### Changed
+- Entry types that hide the slug field (and product types with the slug field off) show no switch.
+- Nested entries (Matrix) are never touched: they have no section.
+- The choice is remembered for the element the form is about, not for other elements a plugin saves in the same request; drafts and revisions never leave rows behind.
+- Settings: the stray `;` the settings page stored in every list is dropped on the next save.
+
+### Fixed
+- The plugin's table is `slugequalstitle_elements` now (lower-case, one row per element). A MySQL dump from macOS or Windows lower-cased the old `slugEqualsTitle_shouldRewrite`, which made the plugin fail on Linux with “Base table or view not found”. The update's migration moves the remembered choices over. [#21](https://github.com/internetztube/craft-slug-equals-title/issues/21)
+- When two elements get the same title, Craft's own URI check now makes the second slug unique (`-2`), as it does for new entries.
+- The asset bundle is no longer registered on every control panel page. [#12](https://github.com/internetztube/craft-slug-equals-title/issues/12)
 
 ## 3.0.1 - 2026-01-15
 ### Fixed

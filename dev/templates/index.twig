@@ -1,0 +1,33 @@
+{# The home page: every element with its address and whether its slug follows its title (the plugin's choice per element). #}
+{% extends '_layout.twig' %}
+{% set slugs = craft.app.plugins.getPlugin('slug-equals-title').slugs %}
+{% macro rows(elements, slugs) %}
+    <ul class="rows">
+        {% for element in elements %}
+            <li>
+                <a href="{{ element.url }}">{{ element.title }}</a>
+                <p class="uri">/{{ element.uri }}</p>
+                {% if slugs.isEnabled(element) %}<span class="how on">slug follows the title</span>{% else %}<span class="how">own slug</span>{% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% endmacro %}
+
+{% block content %}
+    <h1>Addresses that follow their titles</h1>
+    <p class="lead">A small travel journal. Rename an article in the control panel and its address moves with it. The pages keep the slugs they were given.</p>
+
+    <h2 id="journal">Journal</h2>
+    {{ _self.rows(craft.entries().section('news').orderBy('postDate desc').all(), slugs) }}
+
+    <h2 id="pages">Pages</h2>
+    {{ _self.rows(craft.entries().section('pages').all(), slugs) }}
+
+    <h2 id="topics">Topics</h2>
+    {{ _self.rows(craft.categories().all(), slugs) }}
+
+    {% if craft.app.plugins.isPluginEnabled('commerce') %}
+        <h2 id="shop">Shop</h2>
+        {{ _self.rows(craft.products().all(), slugs) }}
+    {% endif %}
+{% endblock %}
