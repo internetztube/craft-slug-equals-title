@@ -2,49 +2,61 @@
 
 declare(strict_types=1);
 
-namespace internetztube\slugEqualsTitle;
+namespace Internetztube\SlugEqualsTitle;
 
-use Craft;
-use craft\base\Element;
-use craft\base\ElementInterface;
-use craft\base\Model;
-use craft\base\Plugin;
-use craft\events\DefineHtmlEvent;
-use craft\events\ModelEvent;
-use craft\helpers\Cp;
-use craft\helpers\ElementHelper;
-use craft\helpers\Html;
-use craft\web\Request as WebRequest;
-use internetztube\slugEqualsTitle\models\Settings;
-use internetztube\slugEqualsTitle\services\SlugService;
-use yii\base\Event;
+use CraftCms\Cms\Cp\Components\Lightswitch as LightswitchComponent;
+use CraftCms\Cms\Element\Contracts\ElementInterface;
+use CraftCms\Cms\Element\ElementHelper;
+use CraftCms\Cms\Element\Events\ElementEditorPayloadResolving;
+use CraftCms\Cms\Element\Events\ElementMetaFieldsHtmlResolving;
+use CraftCms\Cms\Element\Events\ElementSaved;
+use CraftCms\Cms\Element\Events\ElementSaving;
+use CraftCms\Cms\Form\Controls\Lightswitch;
+use CraftCms\Cms\Form\Enums\ControlMode;
+use CraftCms\Cms\Form\Form;
+use CraftCms\Cms\Form\FormContext;
+use CraftCms\Cms\Form\FormPayload;
+use CraftCms\Cms\Form\FormResolver;
+use CraftCms\Cms\Form\Nodes\Field;
+use CraftCms\Cms\Plugin\Plugin;
+use CraftCms\Cms\Plugin\PluginSettings;
+use CraftCms\Cms\Support\Facades\HtmlStack;
+use CraftCms\Cms\Support\Html;
+use CraftCms\Cms\View\Enums\Position;
+use Illuminate\Support\Facades\Event;
+use Override;
+
+use function CraftCms\Cms\t;
 
 /**
- * Keeps the slug of entries, categories and products equal to their title. On by default per section, category group
- * or product type (the plugin settings), and decided per element with a switch in the slug field. The choice made
- * on an edit form is remembered (services/SlugService); console saves (resave, migrations) follow it, other saves
- * without a form (queue jobs, index actions, other plugins) leave the slug alone, as since 1.x.
+ * Keeps the slug of entries (and, with Craft's Yii2 adapter, categories) equal to their title. On by default per
+ * section, entry type or category group (the plugin settings), and decided per element with a switch in the slug
+ * field. The choice made on an edit form is remembered (Slugs); console saves (resave, migrations) follow it, other
+ * saves without a form (queue jobs, index actions, other plugins) leave the slug alone, as since 1.x.
  *
- * @property-read SlugService $slugs
  * @method Settings getSettings()
  */
 class SlugEqualsTitle extends Plugin
 {
+    /** 3.1's schema: 4.0 needs no migration of its own (minVersionRequired makes sure 3.1's ran). */
     public string $schemaVersion = '1.2.0';
+    public string $minVersionRequired = '3.1.0';
+
     public bool $hasCpSettings = true;
 
     /** The switch's input on edit forms: "1" (slug from the title) or "" (keep the slug); the name since 1.x. */
     public const PARAM = 'slugEqualsTitle_shouldRewrite';
 
     /**
-     * Moves the switch into the slug field, next to its input, and while it is on replaces the input with
-     * "Overwritten by title" (the server sets the slug on save). Runs once per page and per slideout.
+     * The legacy editor (slideouts): moves the switch into the slug field, next to its input, and while it is on
+     * replaces the input with "Overwritten by title" (the server sets the slug on save).
      */
     private const JS = <<<'JS'
 for (const holder of document.querySelectorAll('[data-slug-equals-title]:not(.slug-equals-title)')) {
     holder.classList.add('slug-equals-title');
     const slugField = holder.parentElement.querySelector('[data-attribute="slug"]');
-    const lightswitch = holder.querySelector('.lightswitch');
+    const lightswitch = holder.querySelector('craft-switch, .lightswitch'); // Craft 6's web component, or the classic lightswitch
+    const button = lightswitch.querySelector('[role="switch"]') ?? lightswitch;
     if (!slugField) {
         holder.remove(); // this type hides its slug field
         continue;
@@ -64,51 +76,56 @@ for (const holder of document.querySelectorAll('[data-slug-equals-title]:not(.sl
     box.append(note, lightswitch);
     holder.remove();
     const apply = () => {
-        const on = lightswitch.getAttribute('aria-checked') === 'true';
+        const on = button.getAttribute('aria-checked') === 'true';
         slug.disabled = on; // not posted: the server sets it from the title
         slug.classList.toggle('hidden', on);
         note.classList.toggle('hidden', !on);
     };
     apply();
-    $(lightswitch).on('change', apply);
+    lightswitch.addEventListener('change', apply);
+    button.addEventListener('click', () => setTimeout(apply, 0));
 }
 JS;
 
-    /** @return array<string, mixed> */
-    public static function config(): array
+    #[Override]
+    protected static function createSettings(): ?PluginSettings
     {
-        return ['components' => ['slugs' => SlugService::class]];
+        return new Settings();
     }
 
-    public function init(): void
+    #[Override]
+    public function settingsForm(FormContext $context = new FormContext()): ?Form
     {
-        parent::init();
-        foreach (SlugService::elementTypes() as $class) {
-            Event::on($class, Element::EVENT_BEFORE_SAVE, function(ModelEvent $event): void {
-                if ($event->sender instanceof ElementInterface) {
-                    $this->applyTitle($event->sender);
-                }
-            });
-            Event::on($class, Element::EVENT_AFTER_SAVE, function(ModelEvent $event): void {
-                if ($event->sender instanceof ElementInterface) {
-                    $this->remember($event->sender);
-                }
-            });
-            Event::on($class, Element::EVENT_DEFINE_META_FIELDS_HTML, function(DefineHtmlEvent $event): void {
-                if ($event->sender instanceof ElementInterface) {
-                    $event->html .= $this->switchHtml($event->sender, $event->static);
-                }
-            });
-        }
+        return SettingsForm::make($this->getSettings());
     }
 
-    /** Sets the slug from the title when the form's switch, or on the console the remembered choice, says so. */
+    public function boot(): void
+    {
+        $this->app->singleton(Settings::class, fn(): Settings => $this->getSettings());
+        Event::listen(fn(ElementSaving $event) => $this->applyTitle($event->element));
+        Event::listen(fn(ElementSaved $event) => $this->remember($event->element));
+        // the legacy editor (slideouts): the switch as HTML next to Craft's meta fields
+        Event::listen(function (ElementMetaFieldsHtmlResolving $event): void {
+            $event->html .= $this->switchHtml($event->element, $event->static);
+        });
+        // the Inertia editor (edit pages): the switch as a node of the sidebar form, after the slug field
+        Event::listen(function (ElementEditorPayloadResolving $event): void {
+            $event->data = $this->withSwitchNode($event->element, $event->data);
+        });
+    }
+
+    /**
+     * Sets the slug from the title when the form's switch says so. Craft 6's editor posts only what changed, so a
+     * switch left as it was is not in the request: an editor save then follows the remembered choice (what the switch
+     * showed), as does the console (resave, migrations).
+     */
     private function applyTitle(ElementInterface $element): void
     {
-        if ($element->getIsRevision() || !$this->slugs->supports($element) || (string)$element->title === '') {
+        $slugs = app(Slugs::class);
+        if ($element->getIsRevision() || !$slugs->supports($element) || (string)$element->title === '') {
             return;
         }
-        $follow = $this->requestChoice($element) ?? (Craft::$app->getRequest()->getIsConsoleRequest() && $this->slugs->isEnabled($element));
+        $follow = $this->requestChoice($element) ?? ((app()->runningInConsole() || $this->isEditorSave($element)) && $slugs->isEnabled($element));
         if ($follow) {
             // normalized and made unique by Craft's own slug and URI validators, which run after this event
             $element->slug = ElementHelper::generateSlug((string)$element->title, null, $element->getSite()->language);
@@ -118,59 +135,94 @@ JS;
     /** Remembers the switch of an edit form (once per element, not again for every site it propagates to). */
     private function remember(ElementInterface $element): void
     {
+        $slugs = app(Slugs::class);
         $choice = $this->requestChoice($element);
-        if ($choice === null || $element->getIsRevision() || $element->propagating || !$this->slugs->supports($element)) {
+        if ($choice === null || $element->getIsRevision() || $element->propagating || !$slugs->supports($element)) {
             return;
         }
-        $this->slugs->setEnabled($element, $choice);
+        $slugs->setEnabled($element, $choice);
     }
 
-    /** The switch as posted with this element's edit form; null without a form (console, queue, another element's form). */
+    /** The switch as posted with this element's edit form; null without it (console, another element's form, unchanged). */
     private function requestChoice(ElementInterface $element): ?bool
     {
-        $request = Craft::$app->getRequest();
-        if (!$request instanceof WebRequest) {
+        if (app()->runningInConsole()) {
             return null;
         }
-        $value = $request->getBodyParam(self::PARAM);
-        $formElementId = $request->getBodyParam('elementId');
-        if ($value === null || (is_numeric($formElementId) && (int)$formElementId !== $element->getCanonicalId())) {
+        $value = request()->input(self::PARAM);
+        if ($value === null || !$this->isFormOf($element)) {
             return null;
         }
         return (bool)$value;
     }
 
-    /** The "Slug equals title" switch for the meta pane (self::JS moves it under the slug field). */
+    /** A save from Craft's editor (edit page or slideout) of this element: the request names the editor's container. */
+    private function isEditorSave(ElementInterface $element): bool
+    {
+        return !app()->runningInConsole() && request()->filled('editorContainerId') && $this->isFormOf($element);
+    }
+
+    /** Whether the request's form is about this element (another element saved in the same request by a plugin is not). */
+    private function isFormOf(ElementInterface $element): bool
+    {
+        $formElementId = request()->input('elementId');
+        return !is_numeric($formElementId) || (int)$formElementId === $element->getCanonicalId();
+    }
+
+    /** The "Slug equals title" switch for the legacy editor's meta pane (self::JS moves it into the slug field). */
     private function switchHtml(ElementInterface $element, bool $static): string
     {
-        if (!$this->slugs->supports($element)) {
+        if (!app(Slugs::class)->supports($element)) {
             return '';
         }
-        $view = Craft::$app->getView();
-        $view->registerJs(self::JS);
-        $label = Craft::t('slug-equals-title', 'Slug equals title');
-        // rendered after Craft's meta fields; self::JS moves the switch into the slug field, next to its input
-        return Html::tag('div', Cp::lightswitchHtml([
-            'id' => 'slugEqualsTitle',
-            'name' => self::PARAM,
-            'on' => $this->slugs->isEnabled($element),
-            'disabled' => $static,
-            'containerAttributes' => ['title' => $label, 'aria' => ['label' => $label]],
-        ]), ['class' => 'hidden', 'data' => ['slug-equals-title' => Craft::t('slug-equals-title', 'Overwritten by title')]]);
+        HtmlStack::js(self::JS, Position::Ready, 'slug-equals-title');
+        $label = t('Slug equals title', category: 'slug-equals-title');
+        return Html::tag('div', LightswitchComponent::make()
+            ->id('slugEqualsTitle')
+            ->name(self::PARAM)
+            ->on(app(Slugs::class)->isEnabled($element))
+            ->disabled($static)
+            ->buttonAttributes(['title' => $label, 'aria' => ['label' => $label]])
+            ->toHtml(), ['class' => 'hidden', 'data' => ['slug-equals-title' => t('Overwritten by title', category: 'slug-equals-title')]]);
     }
 
-    protected function createSettingsModel(): ?Model
+    /**
+     * The Inertia editor's sidebar form with the switch as a field right after the slug field (none when the type
+     * hides its slug field).
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function withSwitchNode(ElementInterface $element, array $data): array
     {
-        return new Settings();
-    }
-
-    protected function settingsHtml(): ?string
-    {
-        $fromFile = Craft::$app->getConfig()->getConfigFromFile('slug-equals-title');
-        return Craft::$app->getView()->renderTemplate('slug-equals-title/settings.twig', [
-            'settings' => $this->getSettings(),
-            'groups' => SlugService::settingGroups(),
-            'overrides' => is_array($fromFile) ? array_keys($fromFile) : [],
-        ]);
+        $payload = $data['sidebarForm'] ?? null;
+        if (!$payload instanceof FormPayload || !app(Slugs::class)->supports($element)) {
+            return $data;
+        }
+        $slugIndex = null;
+        $slugControl = null;
+        foreach ($payload->nodes as $index => $node) {
+            if ($node->control !== null && $node->control->path === ['slug']) {
+                $slugIndex = $index;
+                $slugControl = $node->control;
+                break;
+            }
+        }
+        if ($slugIndex === null || $slugControl === null) {
+            return $data;
+        }
+        $mode = $slugControl->mode;
+        $field = Field::make(t('Slug equals title', category: 'slug-equals-title'), Lightswitch::make(self::PARAM)
+            ->value(app(Slugs::class)->isEnabled($element))
+            ->mode($mode));
+        $extra = app(FormResolver::class)->resolve(Form::make([$field]), new FormContext(namespace: $payload->scope, mode: $mode));
+        $data['sidebarForm'] = new FormPayload(
+            scope: $payload->scope,
+            refreshable: $payload->refreshable,
+            nodes: [...array_slice($payload->nodes, 0, $slugIndex + 1), ...$extra->nodes, ...array_slice($payload->nodes, $slugIndex + 1)],
+            values: [...$payload->values, ...$extra->values],
+            errors: $payload->errors,
+            globalErrors: $payload->globalErrors,
+        );
+        return $data;
     }
 }

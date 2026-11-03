@@ -157,40 +157,43 @@ window.until = async (test, what, timeout = 15000) => {
     }
 };
 window.$$ = (selector, root = document) => [...root.querySelectorAll(selector)].filter((e) => e.getClientRects().length > 0);
-/** The plugin's switch inside the slug field (the first on the page, or inside \`root\`) and the slug field's parts. */
-window.slugUi = (root = document) => {
-    const slugField = root.querySelector('[data-attribute="slug"]');
-    const lightswitch = slugField?.querySelector('.lightswitch') ?? null;
-    const slugInput = slugField?.querySelector('input') ?? null;
-    const note = slugField?.querySelector('span.light') ?? null;
+/**
+ * The plugin's switch and the slug field on Craft 6's editor (a Vue form of web components): the slug field
+ * (\`craft-field#form-slug\`), the switch's field right after it, its button (\`role="switch"\`) and hidden input.
+ */
+window.slugUi = () => {
+    const slugField = document.querySelector('craft-field#form-slug');
+    const field = document.querySelector('craft-field#form-slugEqualsTitle_shouldRewrite');
+    const button = field?.querySelector('[role="switch"]') ?? null;
     return {
         slugField,
-        lightswitch,
-        on: lightswitch?.getAttribute('aria-checked') === 'true',
-        slugInput,
-        /** the text shown instead of the input while the switch is on */
-        note: note && !note.classList.contains('hidden') ? note.textContent : null,
-        slugHidden: !!slugInput?.classList.contains('hidden'),
-        titleInput: slugField?.closest('form')?.querySelector('input[name="title"], input[name$="[title]"]') ?? null,
-        /** the switch sits in the slug field's input container, right after the input */
-        inSlugField: !!lightswitch && !!slugInput && lightswitch.parentElement === slugInput.parentElement && slugInput.nextElementSibling === note && note?.nextElementSibling === lightswitch,
+        field,
+        button,
+        on: button?.getAttribute('aria-checked') === 'true',
+        slugInput: slugField?.querySelector('input') ?? null,
+        titleInput: document.querySelector('craft-field#form-title input') ?? null,
+        /** the switch's field follows the slug field */
+        afterSlug: !!slugField && !!field && slugField.nextElementSibling === field,
     };
 };
-/** Types into an input like a person (Craft's slug generator and the draft autosave listen for \`input\`). */
+/** Types into an input like a person (the form listens for \`input\`). */
 window.type = (input, text) => {
     input.focus();
     input.value = text;
     input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
 };
-/** Saves the edit page's form and waits for the page to come back. */
+/** Saves the page's form (the primary button) and waits for the editor's notice. */
 window.save = async () => {
-    const form = document.querySelector('form#main-form');
-    Craft.submitForm(form);
-    await sleep(100);
+    const before = notices().length;
+    const button = [...document.querySelectorAll('craft-button[type="submit"]')].find((b) => /^\s*Save\s*$/.test(b.textContent));
+    if (!button) throw new Error('No Save button');
+    button.click();
+    await until(() => notices().some((n) => /saved/i.test(n)) || notices().length > before, 'the save notice');
+    await sleep(500);
 };
 /** Texts of the notices on the page. */
-window.notices = () => $$('.notification').map((n) => n.textContent.replace(/\\s+/g, ' ').trim());
+window.notices = () => $$('.notification, craft-notification, craft-toast, [role="status"]').map((n) => n.textContent.replace(/\\s+/g, ' ').trim());
 window.confirm = () => true;
 // trial and dev mode notices are not part of what the plugin looks like
 const style = document.createElement('style');

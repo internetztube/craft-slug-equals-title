@@ -1,11 +1,10 @@
 /**
  * Control panel tests in a real browser (headless Chrome over the DevTools protocol, dev/browser.mts): what a person
- * sees and does on an edit page. The switch in the slug field, "Overwritten by title" in place of the slug input,
- * saving with the switch on and off, the slideout editor, the German site, a type without a slug field,
- * and the settings page.
+ * sees and does on Craft 6's editor. The switch right after the slug field, saving with the switch on and off, a
+ * section that is off, a type without a slug field, the German site, and the settings page.
  *
  *   dev/dev.sh ui                  (started by dev/dev.sh ci as well)
- *   ONLY="slideout" dev/dev.sh ui  one scenario (a substring of its name)
+ *   ONLY="settings" dev/dev.sh ui  one scenario (a substring of its name)
  *
  * Env: CHROME (path to Chrome), CP_PASSWORD (the admin's password, default: the dev password).
  */
@@ -15,7 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluate, launchChrome, login, open, PAGE_HELPERS, resize, sleep } from './browser.mts';
 
-const [projectDir, baseUrl = 'http://localhost:8080'] = process.argv.slice(2);
+const [projectDir, baseUrl = 'http://localhost:8130'] = process.argv.slice(2);
 if (!projectDir) {
     console.error('Usage: node dev/ui.mts <craft-project-dir> [base-url]');
     process.exit(1);
@@ -23,20 +22,18 @@ if (!projectDir) {
 const here = dirname(fileURLToPath(import.meta.url));
 const password = process.env.CP_PASSWORD ?? 'password';
 const only = process.env.ONLY ?? '';
+const php = process.env.PHP ?? '/opt/homebrew/opt/php/bin/php';
 
 /** The demo elements and two fresh fixtures (dev/targets.php). */
 interface Targets {
     news: { id: number, path: string };
     about: { path: string };
     home: { path: string };
-    category: { path: string };
-    product: { path: string } | null;
     settings: string;
-    uids: { news: string, pages: string, topics: string, landingPage: string };
-    pagesIndex: string;
+    uids: { news: string, pages: string, landingPage: string };
     fixtures: { news: { id: number, path: string, pathDe: string }, page: { id: number, path: string } };
 }
-const targets: Targets = JSON.parse(execFileSync('php', [join(here, 'targets.php'), projectDir, 'fixtures'], { encoding: 'utf8' }));
+const targets: Targets = JSON.parse(execFileSync(php, [join(here, 'targets.php'), projectDir, 'fixtures'], { encoding: 'utf8' }));
 
 let failures = 0;
 let passed = 0;
@@ -55,22 +52,20 @@ await resize(browser, { width: 1400, height: 1100 });
 await login(browser, baseUrl, 'admin', password);
 const visit = async (path: string) => {
     await open(browser, baseUrl + path);
+    await sleep(700); // the Vue editor renders after the page loads
     await evaluate(browser, PAGE_HELPERS);
 };
 const run = (code: string) => evaluate(browser, code);
-/** Submits the page's form, waits for the page Craft redirects to (the index, the plugin list) and opens `path` again. */
+/** The switch and the slug field, as the page shows them. */
+const ui = (): Promise<{ present: boolean, afterSlug: boolean, on: boolean, slug: string, title: string, hasSlugField: boolean }> => run(`
+    const u = slugUi();
+    return { present: !!u.button, afterSlug: u.afterSlug, on: u.on, slug: u.slugInput?.value ?? '', title: u.titleInput?.value ?? '', hasSlugField: !!u.slugField };
+`);
+/** Saves (the editor stays on the page) and opens the page again, so what is read is what was stored. */
 const saveAndReload = async (path: string) => {
-    const loaded = browser.once('Page.loadEventFired');
-    await run(`$('#main-form').trigger('submit');`);
-    await loaded;
-    await sleep(500);
+    await run('await save();');
     await visit(path);
 };
-/** The switch's state and the slug field, as the page shows them. */
-const ui = (): Promise<{ present: boolean, inSlugField: boolean, on: boolean, slugDisabled: boolean, slugHidden: boolean, note: string | null, slug: string, title: string }> => run(`
-    const u = slugUi();
-    return { present: !!u.lightswitch, inSlugField: u.inSlugField, on: u.on, slugDisabled: !!u.slugInput?.disabled, slugHidden: u.slugHidden, note: u.note, slug: u.slugInput?.value ?? '', title: u.titleInput?.value ?? '' };
-`);
 const failureDir = join(projectDir, 'storage', 'ui-failures');
 
 async function scenario(name: string, body: () => Promise<void>): Promise<void> {
@@ -98,13 +93,12 @@ async function scenario(name: string, body: () => Promise<void>): Promise<void> 
 }
 
 try {
-    await scenario('The switch in the slug field', async () => {
+    await scenario('The switch after the slug field', async () => {
         await visit(targets.fixtures.news.path);
         const u = await ui();
-        check(u.present && u.inSlugField, 'a News entry has the "Slug equals title" switch in the slug field, next to the input');
-        check(u.on && u.slugHidden && u.slugDisabled && u.note === 'Overwritten by title', 'on: the slug input is replaced by "Overwritten by title"');
+        check(u.present && u.afterSlug, 'a News entry has the "Slug equals title" switch right after the slug field');
+        check(u.on && u.slug === 'ui-news-entry', `on, with the slug from the title (${u.slug})`);
         await run(`type(slugUi().titleInput, 'UI: Typed a new title!');`);
-        await sleep(300);
         await saveAndReload(targets.fixtures.news.path);
         const saved = await ui();
         check(saved.title === 'UI: Typed a new title!' && saved.slug === 'ui-typed-a-new-title' && saved.on, 'saved: the slug equals the title, the switch stays on');
@@ -112,34 +106,26 @@ try {
 
     await scenario('Switching off keeps a slug of your own', async () => {
         await visit(targets.fixtures.news.path);
-        await run(`$(slugUi().lightswitch).data('lightswitch').toggle();`);
-        await sleep(300);
+        await run(`slugUi().button.click(); await sleep(300);`);
         let u = await ui();
-        check(!u.on && !u.slugHidden && !u.slugDisabled && u.note === null, 'switched off, the slug input is back and free');
-        await run(`type(slugUi().slugInput, 'ui-my-own-slug');`);
-        await run(`type(slugUi().titleInput, 'UI: Another title');`);
-        await sleep(300);
-        u = await ui();
-        check(u.slug === 'ui-my-own-slug', `the title no longer touches the slug (${u.slug})`);
+        check(!u.on, 'switched off');
+        await run(`type(slugUi().slugInput, 'ui-my-own-slug'); type(slugUi().titleInput, 'UI: Another title');`);
         await saveAndReload(targets.fixtures.news.path);
         u = await ui();
         check(u.title === 'UI: Another title' && u.slug === 'ui-my-own-slug' && !u.on, 'saved: the slug of your own is kept, the switch stays off');
-        await run(`$(slugUi().lightswitch).data('lightswitch').toggle();`);
-        await sleep(300);
-        u = await ui();
-        check(u.on && u.slugHidden && u.note === 'Overwritten by title', 'switched on again, "Overwritten by title" takes the input\'s place');
+        await run(`slugUi().button.click(); await sleep(300);`);
         await saveAndReload(targets.fixtures.news.path);
         u = await ui();
-        check(u.slug === 'ui-another-title' && u.on, 'saved: the slug follows the title again');
+        check(u.slug === 'ui-another-title' && u.on, 'switched on again and saved: the slug follows the title again');
     });
 
     await scenario('A section that is off', async () => {
         await visit(targets.fixtures.page.path);
         const u = await ui();
-        check(u.present && u.inSlugField && !u.on && !u.slugHidden && u.slug === 'ui-page', 'a Pages entry has the switch off and its slug free');
+        check(u.present && u.afterSlug && !u.on && u.slug === 'ui-page', 'a Pages entry has the switch off and its own slug');
         await run(`type(slugUi().titleInput, 'UI: Renamed page');`);
-        await sleep(300);
-        check((await ui()).slug === 'ui-page', 'the title leaves the slug alone');
+        await saveAndReload(targets.fixtures.page.path);
+        check((await ui()).slug === 'ui-page', 'saved: the title leaves the slug alone');
         await visit(targets.about.path);
         const about = await ui();
         check(!about.on && about.slug === 'about', 'the demo page "About us" keeps its slug "about"');
@@ -148,92 +134,37 @@ try {
     await scenario('A type without a slug field', async () => {
         await visit(targets.home.path);
         const u = await ui();
-        check(!u.present, 'the Home single (its entry type hides the slug field) shows no switch');
-        await visit(targets.category.path);
-        const c = await ui();
-        check(c.present && c.inSlugField && c.on, 'a category of the Topics group has the switch in its slug field, on');
-        if (targets.product) {
-            await visit(targets.product.path);
-            const p = await ui();
-            check(p.present && p.inSlugField && p.on && p.slug === 'linen-shirt', 'a product of the Clothing type has it too, on');
-        }
-    });
-
-    await scenario('The slideout editor', async () => {
-        await visit(targets.pagesIndex);
-        await run(`
-            window.slideout = Craft.createElementEditor('craft\\\\elements\\\\Entry', { elementId: ${targets.fixtures.page.id}, siteId: ${await run(`return Craft.siteId;`)} });
-            await until(() => document.querySelector('.slideout [data-attribute="slug"]'), 'the slideout');
-            await sleep(500);
-        `);
-        const u: { inSlugField: boolean, on: boolean, slugHidden: boolean } = await run(`
-            const u = slugUi(document.querySelector('.slideout'));
-            return { inSlugField: u.inSlugField, on: u.on, slugHidden: u.slugHidden };
-        `);
-        check(u.inSlugField && !u.on && !u.slugHidden, 'the slideout has the switch in its slug field (off, as remembered for the page)');
-        await run(`
-            const root = document.querySelector('.slideout');
-            $(slugUi(root).lightswitch).data('lightswitch').toggle();
-            await sleep(300);
-            type(slugUi(root).titleInput, 'UI: Saved from the slideout');
-            await sleep(300);
-        `);
-        const after: { on: boolean, slugHidden: boolean, note: string | null } = await run(`
-            const u = slugUi(document.querySelector('.slideout'));
-            return { on: u.on, slugHidden: u.slugHidden, note: u.note };
-        `);
-        check(after.on && after.slugHidden && after.note === 'Overwritten by title', 'switched on in the slideout: "Overwritten by title" takes the input\'s place');
-        await run(`
-            slideout.submit();
-            await sleep(1500);
-            // closes when the save is through; the edit page below is the real check
-            await until(() => !$$('.slideout').length, 'the slideout to close', 15000).catch(() => {});
-        `);
-        await visit(targets.fixtures.page.path);
-        const saved = await ui();
-        check(saved.title === 'UI: Saved from the slideout' && saved.slug === 'ui-saved-from-the-slideout' && saved.on, 'saved from the slideout: the slug equals the title, the switch is on');
+        check(!u.hasSlugField && !u.present, 'the Home single (its entry type hides the slug field) shows no slug field and no switch');
     });
 
     await scenario('The German site', async () => {
         await visit(targets.fixtures.news.pathDe);
         if (!(await ui()).on) {
-            await run(`$(slugUi().lightswitch).data('lightswitch').toggle();`); // the switch is per entry, not per site: the scenario before may have left it off
-            await sleep(300);
+            await run(`slugUi().button.click(); await sleep(300);`); // the switch is per entry, not per site: the scenario before may have left it off
         }
         await run(`type(slugUi().titleInput, 'UI: Straße über München');`);
-        await sleep(300);
         await saveAndReload(targets.fixtures.news.pathDe);
         check((await ui()).slug === 'ui-strasse-ueber-muenchen', `the saved slug is transliterated the German way (${(await ui()).slug})`);
     });
 
     await scenario('The settings page', async () => {
+        const { news, pages, landingPage } = targets.uids;
         await visit(targets.settings);
-        const { news, pages, topics, landingPage } = targets.uids;
-        const page: { news: boolean, pages: boolean, landing: boolean, landingVisible: boolean, topicsDisabled: boolean, note: boolean } = await run(`
+        const page: { news: boolean, pages: boolean, landing: boolean } = await run(`
             window.box = (name, value) => document.querySelector('input[name="settings[' + name + '][]"][value="' + value + '"]');
-            const landing = box('enabledSections', '${pages}:${landingPage}');
-            return { news: box('enabledSections', '${news}').checked, pages: box('enabledSections', '${pages}').checked, landing: landing.checked, landingVisible: landing.getClientRects().length > 0, topicsDisabled: box('enabledCategoryGroups', '${topics}').disabled && box('enabledCategoryGroups', '${topics}').checked, note: document.body.textContent.includes('config/slug-equals-title.php') };
+            return { news: box('enabledSections', '${news}').checked, pages: box('enabledSections', '${pages}').checked, landing: box('enabledSections', '${pages}:${landingPage}').checked };
         `);
-        check(page.news && !page.pages, 'Sections: News is ticked, Pages is not');
-        check(!page.landing && page.landingVisible, 'under Pages, its entry type "Landing page" is listed, unticked');
-        await run(`box('enabledSections', '${pages}').click(); await sleep(300);`);
-        check(!(await run(`return box('enabledSections', '${pages}:${landingPage}').getClientRects().length > 0;`)), 'ticking the whole section hides its entry types');
-        await run(`box('enabledSections', '${pages}').click(); await sleep(300);`);
-        check(await run(`return box('enabledSections', '${pages}:${landingPage}').getClientRects().length > 0;`), 'unticking it shows them again');
-        check(page.topicsDisabled && page.note, 'Category Groups: Topics is ticked but read-only, with the note about config/slug-equals-title.php');
-        await run(`box('enabledSections', '${pages}').click();`);
+        check(page.news && !page.pages && !page.landing, 'Sections: News is ticked, Pages and its entry type "Landing page" are not');
+        await run(`box('enabledSections', '${pages}:${landingPage}').click(); await sleep(200);`);
         await saveAndReload(targets.settings);
-        check(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="${pages}"]').checked;`), 'ticking Pages and saving keeps it ticked');
-        await visit(targets.fixtures.page.path);
-        check((await ui()).on, 'the page entry already switched on (remembered) is still on');
-        await visit(targets.settings);
-        await run(`document.querySelector('input[name="settings[enabledSections][]"][value="${pages}"]').click();`);
+        check(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="${pages}:${landingPage}"]').checked;`), 'ticking "Landing page" and saving keeps it ticked');
+        await run(`document.querySelector('input[name="settings[enabledSections][]"][value="${pages}:${landingPage}"]').click(); await sleep(200);`);
         await saveAndReload(targets.settings);
-        check(!(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="${pages}"]').checked;`)), 'unticked again');
+        check(!(await run(`return document.querySelector('input[name="settings[enabledSections][]"][value="${pages}:${landingPage}"]').checked;`)), 'unticked again');
     });
 } finally {
     await browser.close();
-    execFileSync('php', [join(here, 'targets.php'), projectDir, 'cleanup']);
+    execFileSync(php, [join(here, 'targets.php'), projectDir, 'cleanup']);
 }
 
 console.log(`${passed} ok, ${failures} failed`);

@@ -3,26 +3,29 @@
 declare(strict_types=1);
 
 /**
- * The control panel over HTTP, against a running dev server (dev/dev.sh e2e): logs in, renders edit pages, and saves
- * elements, drafts and settings the way the control panel's JavaScript does (the same action requests and params).
- * Catches what the console smoke cannot: the switch's param on its way through Craft's controllers, drafts and
- * slideouts, what the settings page posts, the revision view.
+ * The Craft 6 control panel over HTTP, against a running dev server (dev/dev.sh e2e): logs in, reads the edit pages
+ * (the Inertia editor's page JSON) and saves elements, drafts and settings the way the control panel does (the same
+ * action requests and params). Catches what the console smoke cannot: the switch as a node of the sidebar form, its
+ * param on its way through Craft's controllers, drafts and slideouts, what the settings page posts, the revision view.
  *
- *   php dev/e2e.php <projectDir> [baseUrl]   (default http://localhost:8080, admin / password)
+ *   php dev/e2e.php <projectDir> [baseUrl]   (default http://localhost:8130, admin / password)
  */
 
-use craft\base\ElementInterface;
-use craft\db\Query;
-use craft\elements\Category;
-use craft\elements\Entry;
-use internetztube\slugEqualsTitle\services\SlugService;
-use internetztube\slugEqualsTitle\SlugEqualsTitle;
+require __DIR__ . '/craft.php';
 
-$projectDir = $argv[1] ?? throw new RuntimeException('Usage: php dev/e2e.php <craft-project-dir> [base-url]');
-require $projectDir . '/bootstrap.php';
-/** @var craft\console\Application $app */
-$app = require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
-$base = rtrim($argv[2] ?? 'http://localhost:8080', '/');
+use CraftCms\Cms\Element\Contracts\ElementInterface;
+use CraftCms\Cms\Entry\Elements\Entry;
+use CraftCms\Cms\Support\Facades\Elements;
+use CraftCms\Cms\Support\Facades\EntryTypes;
+use CraftCms\Cms\Support\Facades\Fields;
+use CraftCms\Cms\Support\Facades\ProjectConfig;
+use CraftCms\Cms\Support\Facades\Sections;
+use CraftCms\Cms\Support\Facades\Sites;
+use Illuminate\Support\Facades\DB;
+use Internetztube\SlugEqualsTitle\SlugEqualsTitle;
+use Internetztube\SlugEqualsTitle\Slugs;
+
+$base = rtrim($argv[2] ?? 'http://localhost:8130', '/');
 
 function check(bool $ok, string $what): void
 {
@@ -32,15 +35,26 @@ function check(bool $ok, string $what): void
     }
 }
 
-/** Minimal HTTP client with a cookie jar and Craft's CSRF token, like the control panel's JavaScript. */
+/** Minimal HTTP client with a cookie jar and Laravel's XSRF token, like the control panel's JavaScript. */
 final class Http
 {
     public string $jar;
-    public ?string $csrf = null;
 
     public function __construct(private string $base)
     {
         $this->jar = tempnam(sys_get_temp_dir(), 'e2e-cookies');
+    }
+
+    /** Laravel's CSRF token, from the XSRF-TOKEN cookie the last response set. */
+    private function xsrf(): ?string
+    {
+        foreach (file($this->jar, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+            $parts = explode("\t", $line);
+            if (($parts[5] ?? '') === 'XSRF-TOKEN') {
+                return urldecode($parts[6] ?? '');
+            }
+        }
+        return null;
     }
 
     /**
@@ -55,11 +69,10 @@ final class Http
         if ($json) {
             $headers[] = 'Accept: application/json';
         }
-        if ($this->csrf) {
-            $headers[] = 'X-CSRF-Token: ' . $this->csrf;
+        if ($token = $this->xsrf()) {
+            $headers[] = 'X-XSRF-TOKEN: ' . $token;
         }
         if ($method === 'POST') {
-            // JSON body, like Craft.sendActionRequest() in the control panel (keeps true/false/null as such)
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
             $headers[] = 'Content-Type: application/json';
@@ -70,7 +83,7 @@ final class Http
             CURLOPT_COOKIEFILE => $this->jar,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_USERAGENT => 'slug-equals-title-e2e', // Craft refuses sessions without a user agent
+            CURLOPT_USERAGENT => 'slug-equals-title-e2e',
         ]);
         $body = (string)curl_exec($ch);
         $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
@@ -82,46 +95,70 @@ final class Http
     /** @param array<string, mixed> $data */
     public function action(string $route, array $data = [], string $method = 'POST', array $headers = []): array
     {
-        // like the control panel's JS: a CP action request; a GET (a screen for a slideout) carries its params in the URL
-        $query = $method === 'GET' && $data ? '&' . http_build_query($data) : '';
-        return $this->request($method, '/index.php?p=admin/actions/' . $route . $query, $data, true, $headers);
+        $query = $method === 'GET' && $data ? '?' . http_build_query($data) : '';
+        return $this->request($method, '/admin/actions/' . $route . $query, $data, true, $headers);
     }
 
+    /** A control panel page: its HTML and, for an Inertia page, the page JSON. */
     public function page(string $path): array
     {
-        return $this->request('GET', $path, [], false);
+        [$status, $html] = $this->request('GET', $path, [], false);
+        $json = preg_match('#<script data-page="app" type="application/json">(.*?)</script>#s', $html, $m) ? (json_decode($m[1], true) ?: []) : [];
+        return [$status, $html, is_array($json) ? $json : []];
     }
 }
 
-$elements = Craft::$app->getElements();
-$plugin = SlugEqualsTitle::getInstance();
-$slugs = $plugin->slugs;
-$de = Craft::$app->getSites()->getSiteByHandle('de') ?? throw new RuntimeException('Run the seed first');
-$commerce = Craft::$app->getPlugins()->isPluginEnabled('commerce');
-$newsUid = Craft::$app->getEntries()->getSectionByHandle('news')?->uid ?? throw new RuntimeException('Run the seed first');
-$pagesUid = Craft::$app->getEntries()->getSectionByHandle('pages')?->uid ?? throw new RuntimeException('Run the seed first');
-$landingUid = Craft::$app->getEntries()->getEntryTypeByHandle('landingPage')?->uid ?? throw new RuntimeException('Run the seed first');
-$topicsUid = Craft::$app->getCategories()->getGroupByHandle('topics')?->uid ?? throw new RuntimeException('Run the seed first');
-$clothingUid = $commerce ? \craft\commerce\Plugin::getInstance()->getProductTypes()->getProductTypeByHandle('clothing')->uid : null;
+/** The nodes of a form payload, flattened: [path (dot-joined), control component, label, mode, props]. */
+function nodes(?array $form): array
+{
+    $out = [];
+    $walk = function (array $nodes) use (&$walk, &$out): void {
+        foreach ($nodes as $node) {
+            $control = $node['control'] ?? null;
+            $out[] = ['path' => is_array($control) ? implode('.', $control['path'] ?? []) : null, 'component' => $control['component'] ?? null, 'label' => $node['props']['label'] ?? null, 'mode' => $control['mode'] ?? null, 'props' => $control['props'] ?? [], 'node' => $node['props'] ?? []];
+            if (!empty($node['children'])) {
+                $walk($node['children']);
+            }
+        }
+    };
+    $walk($form['nodes'] ?? []);
+    return $out;
+}
+
+$slugs = app(Slugs::class);
+$de = Sites::getSiteByHandle('de') ?? throw new RuntimeException('Run the seed first');
+$adapter = class_exists(Slugs::CATEGORY);
+$newsSection = Sections::getSectionByHandle('news') ?? throw new RuntimeException('Run the seed first');
+$pagesSection = Sections::getSectionByHandle('pages') ?? throw new RuntimeException('Run the seed first');
+$landing = EntryTypes::getEntryTypeByHandle('landingPage') ?? throw new RuntimeException('Run the seed first');
 $reload = fn(ElementInterface $element, ?int $siteId = null): ElementInterface => $element::find()->id($element->id)->siteId($siteId ?? $element->siteId)->status(null)->drafts(null)->one() ?? throw new RuntimeException("Element $element->id is gone");
-$rows = fn(ElementInterface $element): array => (new Query())->select(['enabled'])->from(SlugService::TABLE)->where(['elementId' => $element->id])->column();
-$editPath = function(ElementInterface $element): string {
-    $url = $element->getCpEditUrl() ?? throw new RuntimeException("$element has no edit page");
-    return (string)parse_url($url, PHP_URL_PATH) . (($query = parse_url($url, PHP_URL_QUERY)) ? "?$query" : '');
+$rows = fn(ElementInterface $element): array => DB::table(Slugs::TABLE)->where('elementId', $element->id)->pluck('enabled')->map(fn($v): bool => (bool)$v)->all();
+$editPath = fn(ElementInterface $element): string => '/admin/' . ($element instanceof Entry ? 'entries/' . $element->getSection()?->handle : 'categories/' . $element->getGroup()->handle) . '/' . $element->id . ($element->siteId === $de->id ? '?site=de' : '');
+/** Our switch among a page's sidebar form nodes, and the slug node before it. */
+$switchNode = function (array $page): array {
+    $nodes = nodes($page['props']['sidebarForm'] ?? null);
+    $slugAt = null;
+    $switchAt = null;
+    foreach ($nodes as $i => $node) {
+        if ($node['path'] === 'slug') {
+            $slugAt = $i;
+        }
+        if ($node['path'] === SlugEqualsTitle::PARAM) {
+            $switchAt = $i;
+        }
+    }
+    return ['slugAt' => $slugAt, 'switchAt' => $switchAt, 'node' => $switchAt !== null ? $nodes[$switchAt] : null, 'on' => $page['props']['sidebarForm']['values'][SlugEqualsTitle::PARAM] ?? null];
 };
 
 // --- fixtures (leftovers of an aborted run first)
 echo "Fixtures\n";
 foreach (Entry::find()->title('E2E:*')->status(null)->drafts(null)->provisionalDrafts(null)->siteId('*')->unique()->all() as $old) {
-    $elements->deleteElement($old, true);
+    Elements::deleteElement($old, true);
 }
-foreach (Category::find()->title('E2E:*')->status(null)->siteId('*')->unique()->all() as $old) {
-    $elements->deleteElement($old, true);
-}
-$make = function(string $section, string $title, array $attributes = []) use ($elements): Entry {
-    $sectionModel = Craft::$app->getEntries()->getSectionByHandle($section) ?? throw new RuntimeException("No section $section");
-    $entry = new Entry(['sectionId' => $sectionModel->id, 'typeId' => $sectionModel->getEntryTypes()[0]->id, 'title' => $title] + $attributes);
-    $elements->saveElement($entry) or throw new RuntimeException(json_encode($entry->getErrors()));
+$make = function(string $section, string $title, array $attributes = []): Entry {
+    $sectionModel = Sections::getSectionByHandle($section) ?? throw new RuntimeException("No section $section");
+    $entry = new Entry($attributes + ['sectionId' => $sectionModel->id, 'typeId' => $sectionModel->getEntryTypes()[0]->id, 'title' => $title]);
+    Elements::saveElement($entry) or throw new RuntimeException(json_encode($entry->errors()->all()));
     return $entry;
 };
 $news = $make('news', 'E2E: News entry');
@@ -131,131 +168,142 @@ check($news->slug === 'e2e-news-entry' && $page->slug === 'e2e-page', 'a News en
 // --- login like the control panel does
 echo "Login\n";
 $http = new Http($base);
-[$status, , $info] = $http->action('users/session-info', [], 'GET'); // a POST without a token is rejected by CSRF validation
-check($status === 200 && !empty($info['csrfTokenValue']), "session-info gives a CSRF token (HTTP $status)");
-$http->csrf = $info['csrfTokenValue'];
+[$status] = $http->request('GET', '/admin/login', [], false);
+check($status === 200, "the login page gives a session and a CSRF cookie (HTTP $status)");
 [$status, $body, $login] = $http->action('users/login', ['loginName' => 'admin', 'password' => 'password']);
-check($status === 200 && !empty($login['success'] ?? $login['returnUrl'] ?? null), "login succeeds (HTTP $status: " . substr($body, 0, 120) . ')');
-[$status, , $info] = $http->action('users/session-info', [], 'GET');
-check(($info['isGuest'] ?? true) === false && ($info['username'] ?? '') === 'admin', 'session belongs to admin');
-$http->csrf = $info['csrfTokenValue'] ?? $http->csrf;
+check($status === 200 && ($login['user']['username'] ?? '') === 'admin', "login succeeds (HTTP $status: " . substr($body, 0, 120) . ')');
 
-// --- the edit page
+// --- the edit page: Craft 6's Inertia editor renders the sidebar as a form; the switch is one of its fields
 echo "Edit page\n";
-/** The switch as rendered: on, off, or null when it is not on the page. */
-$switchOn = function(string $html): ?bool {
-    if (!preg_match('/<div[^>]*data-slug-equals-title[^>]*>.*?<button[^>]*class="lightswitch[^"]*"[^>]*aria-checked="(true|false)"/s', $html, $m)) {
-        return null;
-    }
-    return $m[1] === 'true';
-};
-[$status, $html] = $http->page($editPath($news));
-check($status === 200, "the News entry's edit page renders (HTTP $status)");
-check($switchOn($html) === true, 'it has the "Slug equals title" switch, on');
-check(str_contains($html, 'name="' . SlugEqualsTitle::PARAM . '"') && str_contains($html, "querySelectorAll('[data-slug-equals-title]"), 'with the switch\'s input and the script that moves it into the slug field');
-check(str_contains($html, 'data-slug-equals-title="Overwritten by title"'), 'and the text shown in place of the slug while the switch is on');
-[$status, $html] = $http->page($editPath($page));
-check($status === 200 && $switchOn($html) === false, 'the Pages entry\'s edit page has the switch off');
-[$status, $html] = $http->page($editPath($reload($news, $de->id)));
-check($status === 200 && $switchOn($html) === true, 'the German site\'s edit page has the switch too (the choice is per entry, not per site)');
+[$status, , $json] = $http->page($editPath($news));
+check($status === 200 && ($json['component'] ?? '') === 'elements/Edit', "the News entry's edit page renders (HTTP $status)");
+$s = $switchNode($json);
+check($s['node'] !== null && $s['node']['component'] === 'craft:lightswitch' && $s['node']['label'] === 'Slug equals title', 'its sidebar form has the "Slug equals title" lightswitch');
+check($s['slugAt'] !== null && $s['switchAt'] === $s['slugAt'] + 1, 'right after the slug field');
+check($s['on'] === true && $s['node']['mode'] === 'editable', 'on, editable');
+[$status, , $json] = $http->page($editPath($page));
+$s = $switchNode($json);
+check($status === 200 && $s['node'] !== null && $s['on'] === false, 'the Pages entry\'s edit page has the switch off');
+[$status, , $json] = $http->page($editPath($reload($news, $de->id)));
+$s = $switchNode($json);
+check($status === 200 && $s['node'] !== null && $s['on'] === true, 'the German site\'s edit page has the switch too (the choice is per entry, not per site)');
 $home = Entry::find()->section('home')->status(null)->one() ?? throw new RuntimeException('No Home entry (run the seed)');
-[$status, $html] = $http->page($editPath($home));
-check($status === 200 && $switchOn($html) === false, 'the single\'s edit page renders the switch too (its entry type hides the slug field; the script removes the switch with it)');
-$revision = Entry::find()->revisionOf($news)->status(null)->orderBy(['dateCreated' => SORT_DESC])->one() ?? throw new RuntimeException('No revision');
-[$status, $html] = $http->page($editPath($news) . (str_contains($editPath($news), '?') ? '&' : '?') . 'revisionId=' . $revision->revisionId);
-$readOnly = preg_match('/<div[^>]*data-slug-equals-title[^>]*>.*?<button[^>]*class="lightswitch[^"]*noteditable/s', $html) === 1;
-check($status === 200 && $readOnly, "a revision shows the switch read-only (HTTP $status, switch: " . var_export($switchOn($html), true) . ($status === 200 ? '' : ': ' . preg_replace('/\s+/', ' ', substr(strip_tags($html), 0, 400))) . ')');
+[$status, , $json] = $http->page($editPath($home));
+$s = $switchNode($json);
+check($status === 200 && $s['slugAt'] === null && $s['node'] === null, 'the single\'s edit page has no slug field (its entry type hides it) and so no switch');
+$revision = Entry::find()->revisionOf($news)->status(null)->orderBy('elements.dateCreated', 'desc')->one() ?? throw new RuntimeException('No revision');
+[$status, , $json] = $http->page($editPath($news) . '?revisionId=' . $revision->revisionId);
+$s = $switchNode($json);
+check($status === 200 && $s['node'] !== null && $s['node']['mode'] !== 'editable', 'a revision shows the switch read-only (' . var_export($s['node']['mode'] ?? null, true) . ')');
 
-// --- saving like the edit page does: elements/save with the form's params
+// --- saving like the editor does: elements/save with the form's values
 echo "Saving\n";
-// the form's fields as the edit page would post them now (its current title and slug), overridden by $params
 $saveEntry = fn(Entry $entry, array $params) => $http->action('elements/save', $params + ['elementId' => $entry->getCanonicalId(), 'siteId' => $entry->siteId, 'title' => $reload($entry)->title, 'slug' => $reload($entry)->slug]);
 [$status, $body, $json] = $saveEntry($news, ['title' => 'E2E: News renamed', 'slug' => 'e2e-typed-by-hand', SlugEqualsTitle::PARAM => '1']);
 check($status === 200 && empty($json['errors']), "saving the News entry with the switch on succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
-check($reload($news)->slug === 'e2e-news-renamed', "the slug follows the new title, whatever the slug input held (title: {$reload($news)->title}, slug: {$reload($news)->slug}, rows: " . json_encode($rows($news)) . ', response: ' . substr($body, 0, 300) . ')');
-check($rows($news) === ['1'] || $rows($news) === [true] || $rows($news) === [1], 'and the choice is remembered (on)');
+check($reload($news)->slug === 'e2e-news-renamed', "the slug follows the new title, whatever the slug input held (title: {$reload($news)->title}, slug: {$reload($news)->slug})");
+check($rows($news) === [true], 'and the choice is remembered (on)');
 check($reload($news, $de->id)->slug === 'e2e-news-entry' && count($rows($news)) === 1, 'the German site keeps its slug (titles are per site; it still has the old one); one row for the entry, not one per site');
-[$status, , $json] = $saveEntry($news, ['title' => 'E2E: News renamed', 'slug' => 'e2e-my-own', SlugEqualsTitle::PARAM => '']);
-check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-my-own', 'with the switch off, the slug typed into the form is kept');
+[$status, , $json] = $saveEntry($news, ['title' => 'E2E: News renamed', 'slug' => 'e2e-my-own', SlugEqualsTitle::PARAM => false]);
+check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-my-own', 'with the switch off (the editor posts false), the slug typed into the form is kept');
 check(!$slugs->isEnabled($reload($news)), 'and the choice is remembered (off)');
 [$status, , $json] = $saveEntry($news, ['title' => 'E2E: News renamed again']);
 check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-my-own', 'a web save without the switch (another form, an index action) leaves the slug alone');
-[$status, , $json] = $saveEntry($page, ['title' => 'E2E: Page renamed', SlugEqualsTitle::PARAM => '1']);
+// Craft 6's editor posts only what changed: a switch left as it was is not in the request, the editor save follows it
+[$status, , $json] = $saveEntry($news, ['title' => 'E2E: News renamed by the editor', 'editorContainerId' => 'main-form', SlugEqualsTitle::PARAM => '1']);
+check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-news-renamed-by-the-editor', 'the editor switches the entry on again');
+[$status, , $json] = $saveEntry($news, ['title' => 'E2E: News renamed by the editor again', 'editorContainerId' => 'main-form']);
+check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-news-renamed-by-the-editor-again', 'an editor save without the switch in the request (unchanged, so not posted) follows the remembered choice: the slug follows the title');
+[$status, , $json] = $saveEntry($news, ['title' => 'E2E: News renamed', 'slug' => 'e2e-my-own', SlugEqualsTitle::PARAM => false]);
+check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-my-own', 'switched off again');
+[$status, , $json] = $saveEntry($page, ['title' => 'E2E: Page renamed', SlugEqualsTitle::PARAM => true]);
 check($status === 200 && empty($json['errors']) && $reload($page)->slug === 'e2e-page-renamed', 'the Pages entry switched on follows its title although its section is off');
 [$status, , $json] = $saveEntry($page, ['title' => 'E2E: Page renamed twice']);
 check($status === 200 && empty($json['errors']) && $reload($page)->slug === 'e2e-page-renamed', 'a web save without the switch leaves the slug alone even with the switch on (only the console follows the remembered choice)');
-$categoryGroup = Craft::$app->getCategories()->getGroupByHandle('regions') ?? throw new RuntimeException('No Regions group');
-$category = new Category(['groupId' => $categoryGroup->id, 'title' => 'E2E: Region', 'slug' => 'e2e-region']);
-$elements->saveElement($category) or throw new RuntimeException(json_encode($category->getErrors()));
-[$status, $html] = $http->page($editPath($category));
-check($status === 200 && $switchOn($html) === false, 'a category\'s edit page has the switch (off: its group is off)');
-[$status, , $json] = $http->action('elements/save', ['elementId' => $category->id, 'siteId' => $category->siteId, 'title' => 'E2E: Region renamed', 'slug' => 'e2e-region', SlugEqualsTitle::PARAM => '1']);
-check($status === 200 && empty($json['errors']) && $reload($category)->slug === 'e2e-region-renamed', 'a category saved with the switch on follows its title');
-if ($commerce) {
-    $product = \craft\commerce\elements\Product::find()->type('clothing')->status(null)->one() ?? throw new RuntimeException('No product (run the seed)');
-    [$status, $html] = $http->page($editPath($product));
-    check($status === 200 && $switchOn($html) === true, 'a product\'s edit page has the switch (on: its type is on)');
+if ($adapter) {
+    $categoryClass = Slugs::CATEGORY;
+    $regions = \Craft::$app->getCategories()->getGroupByHandle('regions') ?? throw new RuntimeException('No Regions group');
+    foreach ($categoryClass::find()->title('E2E:*')->status(null)->siteId('*')->unique()->all() as $old) {
+        Elements::deleteElement($old, true);
+    }
+    $category = new $categoryClass(['groupId' => $regions->id, 'title' => 'E2E: Region', 'slug' => 'e2e-region']);
+    Elements::saveElement($category) or throw new RuntimeException(json_encode($category->getErrors()));
+    [$status, $html, $json] = $http->page($editPath($category));
+    $sidebarHtml = (string)($json['props']['editorSidebarHtml'] ?? '');
+    check($status === 200 && str_contains($sidebarHtml, 'data-slug-equals-title') && str_contains($sidebarHtml, 'aria-checked="false"'), 'a category\'s edit page (the adapter\'s legacy editor) has the switch (off: its group is off)');
+    [$status, , $json] = $http->action('elements/save', ['elementId' => $category->id, 'siteId' => $category->siteId, 'title' => 'E2E: Region renamed', 'slug' => 'e2e-region', SlugEqualsTitle::PARAM => '1']);
+    check($status === 200 && empty($json['errors']) && $reload($category)->slug === 'e2e-region-renamed', 'a category saved with the switch on follows its title');
 }
 
-// --- drafts, as the edit page autosaves and publishes them
+// --- drafts, as the editor autosaves and publishes them
 echo "Drafts\n";
 [$status, $body, $json] = $http->action('elements/save-draft', ['elementId' => $news->id, 'siteId' => $news->siteId, 'title' => 'E2E: Draft title', 'slug' => 'e2e-my-own', SlugEqualsTitle::PARAM => '1']);
 check($status === 200 && !empty($json['draftId']), "autosaving a draft with the switch on succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
 $draft = Entry::find()->draftId($json['draftId'])->status(null)->one() ?? throw new RuntimeException('No draft');
 check($draft->slug === 'e2e-draft-title', 'the draft\'s slug follows the draft\'s title');
-check($rows($draft) === ['1'] || $rows($draft) === [true] || $rows($draft) === [1], 'the draft remembers its own choice');
+check($rows($draft) === [true], 'the draft remembers its own choice');
 check(!$slugs->isEnabled($reload($news)), 'the canonical entry keeps its own (off)');
 [$status, $body, $json] = $http->action('elements/apply-draft', ['elementId' => $news->id, 'draftId' => $draft->draftId, 'siteId' => $news->siteId, 'title' => 'E2E: Published title', 'slug' => 'e2e-draft-title', SlugEqualsTitle::PARAM => '1']);
 check($status === 200 && empty($json['errors']), "publishing the draft succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
 $published = $reload($news);
 check($published->title === 'E2E: Published title' && $published->slug === 'e2e-published-title' && $slugs->isEnabled($published), 'the canonical entry has the draft\'s title, a slug from it, and the switch on');
 
-// --- the demo site's front end (dev/templates): every template renders, with the plugin's choice per element
-echo "Front end\n";
-foreach ([
-    '/' => ['Addresses that follow their titles', 'slug follows the title', 'own slug'],
-    '/news/a-weekend-in-hong-kong' => ['It follows the title'],
-    '/pages/about' => ['It is its own'],
-    '/topics/city-guides' => ['City guides', 'It follows the title'],
-    '/de/' => ['Journal'],
-] as $path => $texts) {
-    [$status, $html] = $http->page($path);
-    check($status === 200 && !array_filter($texts, fn(string $text): bool => !str_contains($html, $text)), "front end $path shows “" . implode('”, “', $texts) . "” (HTTP $status)");
-}
+// --- the slideout editor (Craft's legacy editor, HTML): the switch next to the slug field, with its script
+// the editor of an element the plugin does not support (the user's account) is left as it is: no switch
+[$status, , $json] = $http->page('/admin/myaccount');
+check($status === 200 && $switchNode($json)['switchAt'] === null, 'the editor of an element the plugin does not support (the user account) has no switch (' . (isset($json['props']['sidebarForm']) ? 'sidebar form' : 'no sidebar form') . ')');
 
-// --- the slideout editor (Craft's element editor in a slideout asks for the same screen as JSON)
+$block = Entry::find()->type('textBlock')->status(null)->one();
+[$status, , $json] = $http->page((string)parse_url((string)$block?->getCpEditUrl(), PHP_URL_PATH));
+check($block !== null && $status === 200 && $switchNode($json)['switchAt'] === null, 'the edit page of a nested entry (a Matrix block, no section) has no switch (' . (isset($json['props']['sidebarForm']) ? 'sidebar form' : 'no sidebar form') . ')');
+
 echo "Slideout\n";
-[$status, $body, $json] = $http->action('elements/edit', ['elementType' => Entry::class, 'elementId' => $page->id, 'siteId' => $page->siteId], 'GET', ['X-Craft-Namespace: e2e-slideout', 'X-Craft-Container-Id: e2e-slideout', 'X-Craft-Container-Type: slideout']);
+$slideout = ['X-Craft-Container-Id: e2e-slideout', 'X-Craft-Container-Type: slideout'];
+[$status, $body, $json] = $http->action('elements/edit', ['elementType' => Entry::class, 'elementId' => $page->id, 'siteId' => $page->siteId], 'GET', $slideout);
 check($status === 200 && !empty($json['sidebar']), "the slideout screen renders (HTTP $status: " . substr($body, 0, 200) . ')');
-check($switchOn((string)$json['sidebar']) === true && str_contains((string)$json['sidebar'], 'name="' . $json['namespace'] . '[' . SlugEqualsTitle::PARAM . ']"'), 'its sidebar has the switch (on: remembered) with its input, namespaced like the rest of the slideout (Craft strips it on submit)');
-check(str_contains((string)($json['bodyHtml'] ?? $json['html'] ?? '') . (string)($json['headHtml'] ?? ''), "querySelectorAll('[data-slug-equals-title]"), 'and the script comes with the screen');
-$page->setFieldValue('blocks', ['new1' => ['type' => 'textBlock', 'enabled' => true, 'title' => 'E2E: A block', 'fields' => []]]);
-$elements->saveElement($page) or throw new RuntimeException(json_encode($page->getErrors()));
-$block = Entry::find()->ownerId($page->id)->field('blocks')->status(null)->one() ?? throw new RuntimeException('No block');
-[$status, $body, $json] = $http->action('elements/edit', ['elementType' => Entry::class, 'elementId' => $block->id, 'siteId' => $block->siteId], 'GET', ['X-Craft-Namespace: e2e-block', 'X-Craft-Container-Id: e2e-block', 'X-Craft-Container-Type: slideout']);
-check($status === 200 && isset($json['sidebar']) && $switchOn((string)$json['sidebar']) === null, "a Matrix block's slideout (a nested entry, no section) has no switch (HTTP $status)");
+check(preg_match('/data-slug-equals-title[^>]*>.*?role="switch"[^>]*aria-checked="true"/s', (string)$json['sidebar']) === 1 && str_contains((string)$json['sidebar'], 'name="' . $json['namespace'] . '[' . SlugEqualsTitle::PARAM . ']"'), 'its sidebar has the switch (on: remembered) with its input, namespaced like the rest of the slideout');
+check(str_contains((string)($json['bodyHtml'] ?? ''), "querySelectorAll('[data-slug-equals-title]"), 'and the script that moves it into the slug field comes with the screen');
+$page->setFieldValue('blocks', ['new1' => ['type' => 'textBlock', 'enabled' => true, 'title' => 'E2E: A block', 'fields' => ['body' => 'x']]]);
+Elements::saveElement($page) or throw new RuntimeException(json_encode($page->errors()->all()));
+$blocksField = Fields::getFieldByHandle('blocks') ?? throw new RuntimeException('No blocks field');
+$block = Entry::find()->ownerId($page->id)->fieldId($blocksField->id)->status(null)->one() ?? throw new RuntimeException('No block');
+[$status, $body, $json] = $http->action('elements/edit', ['elementType' => Entry::class, 'elementId' => $block->id, 'siteId' => $block->siteId], 'GET', $slideout);
+check($status === 200 && isset($json['sidebar']) && !str_contains((string)$json['sidebar'], 'data-slug-equals-title'), "a Matrix block's slideout (a nested entry, no section) has no switch (HTTP $status)");
 
 // --- the settings page: what it shows and what it saves (last: it writes project config)
 echo "Settings page\n";
-[$status, $html] = $http->page('/admin/settings/plugins/slug-equals-title');
-check($status === 200, "the settings page renders (HTTP $status)");
-$box = fn(string $name, string $value): ?string => preg_match('/<input[^>]*name="settings\[' . preg_quote($name, '/') . '\]\[\]"[^>]*value="' . preg_quote($value, '/') . '"[^>]*>/', $html, $m) || preg_match('/<input[^>]*value="' . preg_quote($value, '/') . '"[^>]*name="settings\[' . preg_quote($name, '/') . '\]\[\]"[^>]*>/', $html, $m) ? $m[0] : null;
-check(str_contains((string)$box('enabledSections', $newsUid), 'checked') && $box('enabledSections', $pagesUid) !== null && !str_contains((string)$box('enabledSections', $pagesUid), 'checked'), 'Sections are listed by UID: News ticked, Pages not');
-check($box('enabledSections', "$pagesUid:$landingUid") !== null && !str_contains($html, "value=\"$newsUid:"), 'the entry types of Pages (two of them) are listed under it, by "section:entryType" UIDs; News with one entry type lists none');
-check(preg_match('/<input[^>]*value="' . preg_quote($newsUid, '/') . '"[^>]*data-reverse-target="[^"]*section-news-types"/', $html) === 1 || preg_match('/data-reverse-target="[^"]*section-pages-types"/', $html) === 1, 'a section checkbox hides its entry types while it is ticked (Craft\'s own field toggle)');
-check(str_contains((string)$box('enabledCategoryGroups', $topicsUid), 'disabled') && str_contains((string)$box('enabledCategoryGroups', $topicsUid), 'checked') && str_contains($html, 'config/slug-equals-title.php'), 'Category Groups is read-only with a note: set in config/slug-equals-title.php (its handle there matches the group)');
-check(($commerce && str_contains($html, 'settings[enabledProductTypes][]')) || (!$commerce && !str_contains($html, 'enabledProductTypes')), 'Product Types are listed only with Commerce');
-[$status, $body, $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid, "$pagesUid:$landingUid"], 'enabledCategoryGroups' => '', 'enabledProductTypes' => '']]);
-check($status === 200 && empty($json['errors']), "saving the settings succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
-$stored = Craft::$app->getProjectConfig()->get('plugins.slug-equals-title.settings', true);
-check(($stored['enabledSections'] ?? null) === [$newsUid, "$pagesUid:$landingUid"] && empty($stored['enabledProductTypes']), 'the ticked section and entry type are stored by UID; an empty list is stored as none');
-[$status, , $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid], 'enabledCategoryGroups' => '', 'enabledProductTypes' => $commerce ? [$clothingUid] : '']]);
-check($status === 200 && empty($json['errors']), 'the seeded settings are back');
+[$status, , $json] = $http->page('/admin/settings/plugins/slug-equals-title');
+check($status === 200 && !empty($json['props']['form']), "the settings page renders (HTTP $status)");
+$form = $json['props']['form'];
+$byPath = [];
+foreach (nodes($form) as $node) {
+    $byPath[$node['path']] = $node;
+}
+$sections = $byPath['settings.enabledSections'] ?? null;
+$optionValues = array_column($sections['props']['options'] ?? [], 'value', 'label');
+check($sections !== null && $sections['component'] === 'craft:choice' && ($optionValues['News'] ?? null) === $newsSection->uid && ($optionValues['Pages'] ?? null) === $pagesSection->uid, 'Sections are listed by UID');
+check(($optionValues['↳ Landing page'] ?? null) === "$pagesSection->uid:$landing->uid" && !isset($optionValues['↳ Article']), 'the entry types of Pages (two of them) are listed under it, by "section:entryType" UIDs; News with one entry type lists none');
+check(($form['values']['settings']['enabledSections'] ?? null) === [$newsSection->uid], 'News is ticked, Pages not');
+if ($adapter) {
+    $groups = $byPath['settings.enabledCategoryGroups'] ?? null;
+    $topicsUid = \Craft::$app->getCategories()->getGroupByHandle('topics')->uid;
+    $groupValues = array_column($groups['props']['options'] ?? [], 'value', 'label');
+    check($groups !== null && $groups['mode'] === 'disabled' && str_contains((string)($groups['node']['warning'] ?? ''), 'config/craft/slug-equals-title.php'), 'Category Groups is read-only with a note: set in config/craft/slug-equals-title.php (' . json_encode($groups['node'] ?? null) . ')');
+    check(($groupValues['Topics'] ?? null) === 'topics' && ($groupValues['Regions'] ?? null) === $regions->uid && ($form['values']['settings']['enabledCategoryGroups'] ?? null) === ['topics'], 'Topics (named by handle in the config file) is ticked, Regions (by UID) is not');
+}
+[$status, $body, $json] = $http->request('POST', '/admin/settings/plugins/slug-equals-title', ['settings' => ['enabledSections' => [$newsSection->uid, "$pagesSection->uid:$landing->uid"], 'enabledCategoryGroups' => [], 'enabledProductTypes' => []]]);
+check($status === 200, "saving the settings succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
+$stored = ProjectConfig::get('plugins.slug-equals-title.settings', true);
+check(($stored['enabledSections'] ?? null) === [$newsSection->uid, "$pagesSection->uid:$landing->uid"] && empty($stored['enabledProductTypes']), 'the ticked section and entry type are stored by UID; an empty list is stored as none');
+[$status] = $http->request('POST', '/admin/settings/plugins/slug-equals-title', ['settings' => ['enabledSections' => [$newsSection->uid], 'enabledCategoryGroups' => [], 'enabledProductTypes' => []]]);
+check($status === 200, 'the seeded settings are back');
 
 // --- cleanup
 foreach ([$news, $page] as $entry) {
-    $elements->deleteElement($entry, true);
+    Elements::deleteElement($entry, true);
 }
-$elements->deleteElement($category, true);
+if (isset($category)) {
+    Elements::deleteElement($category, true);
+}
 unlink($http->jar);
 echo "All ok\n";

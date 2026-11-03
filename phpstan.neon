@@ -1,10 +1,11 @@
 includes:
-    - vendor/craftcms/phpstan/phpstan.neon
+    - vendor/larastan/larastan/extension.neon
 
 parameters:
     level: 9
     paths:
         - src
+        - database
     ignoreErrors:
-        # Craft Commerce is optional and not installed here.
-        - '#craft\\commerce\\#'
+        # Categories of Craft's Yii2 adapter and Craft Commerce's products: optional, not installed here.
+        - '#craft\\(elements|commerce|services|models)\\#'

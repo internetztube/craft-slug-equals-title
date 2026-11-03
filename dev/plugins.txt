@@ -1,2 +1,1 @@
-craftcms/commerce:^5.0
-craftcms/ckeditor:^4.0
+# Third-party plugins the dev project installs (none yet: Commerce and CKEditor have no Craft 6 release)

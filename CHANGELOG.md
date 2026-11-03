@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## Unreleased
 
+## 4.0.0-alpha.1 - 2026-11-04
+
+The plugin for Craft 6. Everything 3.1 does, on Craft 6's new editor and its slideouts. See [`UPGRADE.md`](UPGRADE.md).
+
+### Breaking changes
+- **Craft 6 and PHP 8.5.** Sites on Craft 5 stay on 3.x. Update to 3.1.0 first: 4.0 expects its table and settings.
+- **The config file lives at `config/craft/slug-equals-title.php`** (Craft 6's place for plugin config); the keys are the same.
+- **The namespace is `Internetztube\SlugEqualsTitle`** (Craft 6's style); the service is `Slugs`, a singleton.
+- **Categories only with Craft's Yii2 adapter**; Craft Commerce has no Craft 6 release yet, so product types wait for it.
+
+### Changed
+- On Craft 6's edit pages the switch is a field of the editor's sidebar form, right after the slug field; the slug input stays visible while it is on (the slideouts keep the “Overwritten by title” note).
+- Craft 6's editor posts only what changed: an editor save without the switch in the request follows the choice the switch showed (remembered or default), a toggled switch is remembered. Other web saves without the form field still leave the slug alone.
+- The settings page is Craft 6's form: a checkbox list per element type, a section's entry types under it, config-file overrides read-only.
+
 ## 3.1.0 - 2026-11-03
 
 A rewrite under the hood that keeps the behaviour: less code (no asset bundle, no build step, no record class) and three test suites.

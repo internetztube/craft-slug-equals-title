@@ -1,7 +1,7 @@
 /**
- * Documentation screenshots of the plugin in the seeded dev project, taken with headless Chrome over the DevTools
- * protocol (dev/browser.mts, no packages; Node 24 runs it as TypeScript, no build step): the whole control panel page
- * in a browser window, a ring on the feature and a zoomed inset of it.
+ * Documentation screenshots of the plugin in the seeded Craft 6 dev project, taken with headless Chrome over the
+ * DevTools protocol (dev/browser.mts, no packages; Node 24 runs it as TypeScript, no build step): the whole control
+ * panel page in a browser window, a ring on the feature and a zoomed inset of it; and a cover of three close-ups.
  *
  *   dev/dev.sh screenshots              all shots into docs/screenshots/
  *   ONLY=settings dev/dev.sh screenshots
@@ -15,7 +15,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { evaluate, launchChrome, login, open, PAGE_HELPERS as CP_HELPERS, resize, type Browser } from './browser.mts';
 
-const [projectDir, baseUrl = 'http://localhost:8080', outDir = 'docs/screenshots'] = process.argv.slice(2);
+const [projectDir, baseUrl = 'http://localhost:8130', outDir = 'docs/screenshots'] = process.argv.slice(2);
 if (!projectDir) {
     console.error('Usage: node dev/screenshots.mts <craft-project-dir> [base-url] [out-dir]');
     process.exit(1);
@@ -38,7 +38,6 @@ interface Targets {
     news: { path: string };
     about: { path: string };
     settings: string;
-    pagesIndex: string;
 }
 
 interface Shot {
@@ -56,8 +55,6 @@ interface Shot {
     highlight: string;
     /** false: rings only, no zoomed inset (the page shows the feature big enough) */
     inset?: boolean;
-    /** JavaScript run in the page before the capture (may await) */
-    act?: string;
     /** JavaScript expression for the part of the page the cover shows as a close-up (COVER_SHOTS) */
     cover?: string;
     /** under that close-up */
@@ -81,7 +78,7 @@ interface Area {
     inset?: Region;
 }
 
-/** A shot as taken: its page and inset as files in the work directory. */
+/** A shot as taken: its page, inset and cover close-up as files in the work directory. */
 interface Taken {
     shot: Shot;
     base: string;
@@ -93,7 +90,8 @@ interface Taken {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const targets: Targets = JSON.parse(execFileSync('php', [join(here, 'targets.php'), projectDir], { encoding: 'utf8' }));
+const php = process.env.PHP ?? '/opt/homebrew/opt/php/bin/php';
+const targets: Targets = JSON.parse(execFileSync(php, [join(here, 'targets.php'), projectDir], { encoding: 'utf8' }));
 const password = process.env.CP_PASSWORD ?? 'password';
 const only = (process.env.ONLY ?? '').split(',').filter(Boolean);
 
@@ -109,63 +107,42 @@ window.regionOf = (elements, padding = 0) => {
 };
 `;
 
-/** The slug field with the switch in it, inside `root`. */
-const SWITCH_AND_SLUG = (root = 'document') => `[[slugUi(${root}).slugField]]`;
+/** The slug field and the switch's field after it. */
+const SLUG_AND_SWITCH = `[[slugUi().slugField, slugUi().field]]`;
+/** The settings page's lists. */
+const SETTINGS_FIELDS = `[[...document.querySelectorAll('craft-field[id^="form-settings-"]')]]`;
 
 const SHOTS: Shot[] = [
     {
         name: 'edit-page',
         title: 'The slug follows the title',
-        text: 'Switched on, the slug field reads “Overwritten by title”: every save sets the slug from the title, and Craft keeps it unique.',
+        text: 'Switched on, every save sets the slug from the title, and Craft keeps it unique.',
         path: targets.news.path,
-        points: ['On by default for the sections you pick', 'One switch per entry, in the slug field', 'Craft’s own slug rules, in the site’s language'],
-        highlight: SWITCH_AND_SLUG(),
-        cover: `[slugUi().slugField.closest('.meta')]`,
-        caption: 'The switch in the slug field',
+        points: ['On by default for the sections you pick', 'One switch per entry, next to the slug', 'Craft’s own slug rules, in the site’s language'],
+        highlight: SLUG_AND_SWITCH,
+        cover: SLUG_AND_SWITCH,
+        caption: 'The switch next to the slug',
     },
     {
         name: 'own-slug',
         title: 'Or keep a slug of your own',
-        text: 'Switch it off for one entry: the slug field is free again and stays what you type, whatever the title does.',
+        text: 'Switch it off for one entry: the slug stays what you type, whatever the title does.',
         path: targets.about.path,
-        points: ['Remembered per entry, drafts included', 'Sections that are off start like this', 'resave/entries respects it'],
-        highlight: SWITCH_AND_SLUG(),
-        cover: `[slugUi().slugField.closest('.meta')]`,
+        points: ['Remembered per entry, drafts included', 'Sections that are off start like this', 'craft:resave:entries respects it'],
+        highlight: SLUG_AND_SWITCH,
+        cover: SLUG_AND_SWITCH,
         caption: 'Or keep a slug of your own',
-    },
-    {
-        name: 'slideout',
-        title: 'In slideouts too',
-        text: 'Wherever Craft edits an element, the switch sits in its slug field: edit pages, slideouts, categories and products.',
-        path: targets.pagesIndex,
-        points: ['Entries, categories, Commerce products', 'Edit pages and slideouts', 'Read-only on revisions'],
-        act: `
-            const row = [...document.querySelectorAll('.elements table tbody tr')].find((r) => r.textContent.includes('Contact'));
-            Craft.createElementEditor('craft\\\\elements\\\\Entry', { elementId: Number(row.dataset.id), siteId: Craft.siteId });
-            await until(() => document.querySelector('.slideout [data-attribute="slug"]'), 'the slideout');
-            await sleep(900);
-        `,
-        highlight: SWITCH_AND_SLUG("document.querySelector('.slideout')"),
-    },
-    {
-        name: 'front-end',
-        title: 'The demo site',
-        text: 'A small travel journal the dev project serves: every element with its address and whether its slug follows its title.',
-        path: '/',
-        points: ['dev/templates, three files', 'Rename an article, its address moves', 'Pages keep their own slugs'],
-        highlight: `[$$('.rows')[0]]`,
-        inset: false,
     },
     {
         name: 'settings',
         title: 'Defaults per section',
-        text: 'Pick the sections, category groups and product types whose elements follow their title, or single entry types of a section. Or set them per environment in config/slug-equals-title.php.',
+        text: 'Pick the sections, single entry types of a section, and category groups whose elements follow their title. Or set them per environment in config/craft/slug-equals-title.php.',
         path: targets.settings,
-        points: ['Sections, entry types, category groups, product types', 'Overridable in a config file', 'Every element can still decide for itself'],
-        highlight: `[$$('#content .field')]`,
+        points: ['Sections, entry types, category groups', 'Overridable in a config file', 'Every element can still decide for itself'],
+        highlight: SETTINGS_FIELDS,
         inset: false,
-        // the fields span the content pane; the close-up takes their left 800px, enough for the longest line
-        cover: `(() => { const r = regionOf($$('#content .field')); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + 800, bottom: r.y + r.height }) }]; })()`,
+        // the page's heading, the lists and the Save button, as wide as the warning line: a tall card on the cover
+        cover: `(() => { const r = regionOf([document.querySelector('main h1, h1'), ...document.querySelectorAll('craft-field[id^="form-settings-"]'), document.querySelector('craft-button[type="submit"]')]); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + Math.min(r.width, 860), bottom: r.y + r.height }) }]; })()`,
         caption: 'Defaults per section, entry type, group',
     },
 ];
@@ -220,8 +197,8 @@ function escapeHtml(text: string): string {
     return text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c);
 }
 
-/** The plugin icon (src/icon.svg, white) as a data URL for the frames. */
-const PLUGIN_ICON = `data:image/svg+xml;base64,${readFileSync(join(here, '..', 'src', 'icon.svg')).toString('base64')}`;
+/** The plugin icon (resources/icon.svg) as a data URL for the frames. */
+const PLUGIN_ICON = `data:image/svg+xml;base64,${readFileSync(join(here, '..', 'resources', 'icon.svg')).toString('base64')}`;
 
 /** The accent of the rings and the inset: the icon's green. */
 const ACCENT = '#2ec27e';
@@ -270,7 +247,7 @@ function layoutOf(area: Area) {
 const scaled = (r: Region, scale: number): Region => ({ x: r.x * scale, y: r.y * scale, width: r.width * scale, height: r.height * scale });
 
 /**
- * The zoomed inset: the first highlight captured at 3× and shown larger, in the corner of the window farthest from it,
+ * The zoomed inset: the first highlight captured at 3× and shown larger, in the nearest free corner of the window,
  * with a line from the ring to it. Nothing when the page already shows it big enough.
  */
 function insetHtml(area: Area, insetUrl: string, scale: number, width: number, height: number): string {
@@ -343,7 +320,7 @@ function frameHtml({ shot, base, inset, area, address }: Taken): string {
 /** The three close-ups of the cover: two stacked on the left, the tall one on the right. */
 const COVER_SHOTS = ['edit-page', 'own-slug', 'settings'];
 /** What the cover promises, under the title. */
-const COVER_CHIPS = ['Entries, categories, products', 'Per section, entry type or element', 'Three test suites, 100 % covered', 'Craft CMS 5'];
+const COVER_CHIPS = ['Entries, and categories with the adapter', 'Per section, entry type or element', 'Three test suites, 100 % covered', 'Craft CMS 6'];
 
 /** The cover for the README and the Plugin Store: the plugin's name over three close-ups of the control panel. */
 function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): string {
@@ -396,7 +373,7 @@ function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): s
     </style></head><body>
         <div class="head">
             <img src="${PLUGIN_ICON}" alt=""><h1>Slug Equals Title</h1>
-            <p>The slug follows the title in Craft CMS. Per section by default, per entry when you want.</p>
+            <p>The slug follows the title in Craft CMS 6. Per section by default, per entry when you want.</p>
             <div class="chips">${chips}</div>
         </div>
         <div class="spot"></div>
@@ -422,13 +399,8 @@ try {
             continue;
         }
         await open(browser, baseUrl + shot.path);
+        await new Promise((r) => setTimeout(r, 1200)); // the Vue editor renders after the page loads
         await evaluate(browser, PAGE_HELPERS);
-        if (shot.act) {
-            await evaluate(browser, shot.act).catch(async (error) => {
-                writeFileSync(join(outDir, `failed-${shot.name}.png`), await captureViewport(browser));
-                throw error;
-            });
-        }
         const area = await measure(browser, shot);
         const base = join(workDir, `${shot.name}.png`);
         writeFileSync(base, await captureViewport(browser));

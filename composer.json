@@ -1,8 +1,8 @@
 {
     "name": "internetztube/craft-slug-equals-title",
-    "description": "Keeps the slug equal to the title: per section, category group or product type by default, and per element with a switch under the slug field.",
+    "description": "Keeps the slug equal to the title: per section, entry type, category group or product type by default, and per element with a switch in the slug field.",
     "type": "craft-plugin",
-    "version": "3.1.0",
+    "version": "4.0.0-alpha.1",
     "keywords": [
         "craft",
         "cms",
@@ -13,7 +13,7 @@
         "slug equals title"
     ],
     "support": {
-        "docs": "https://github.com/internetztube/craft-slug-equals-title/blob/3.x/README.md",
+        "docs": "https://github.com/internetztube/craft-slug-equals-title/blob/4.x/README.md",
         "issues": "https://github.com/internetztube/craft-slug-equals-title/issues",
         "source": "https://github.com/internetztube/craft-slug-equals-title"
     },
@@ -25,11 +25,13 @@
         }
     ],
     "require": {
-        "craftcms/cms": "^5.0.0"
+        "php": "^8.5",
+        "craftcms/cms": "^6.0.0-alpha.20"
     },
     "autoload": {
         "psr-4": {
-            "internetztube\\slugEqualsTitle\\": "src/"
+            "Internetztube\\SlugEqualsTitle\\": "src/",
+            "Internetztube\\SlugEqualsTitle\\Database\\Migrations\\": "database/migrations/"
         }
     },
     "extra": {
@@ -37,20 +39,21 @@
         "handle": "slug-equals-title",
         "developer": "Frederic Koeberl",
         "developerUrl": "https://frederickoeberl.com/",
-        "documentationUrl": "https://github.com/internetztube/craft-slug-equals-title/blob/3.x/README.md",
-        "changelogUrl": "https://raw.githubusercontent.com/internetztube/craft-slug-equals-title/3.x/CHANGELOG.md",
-        "class": "internetztube\\slugEqualsTitle\\SlugEqualsTitle"
+        "documentationUrl": "https://github.com/internetztube/craft-slug-equals-title/blob/4.x/README.md",
+        "changelogUrl": "https://raw.githubusercontent.com/internetztube/craft-slug-equals-title/4.x/CHANGELOG.md",
+        "class": "Internetztube\\SlugEqualsTitle\\SlugEqualsTitle"
     },
     "minimum-stability": "dev",
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
-            "yiisoft/yii2-composer": true,
-            "craftcms/plugin-installer": true
+            "craftcms/plugin-installer": true,
+            "yiisoft/yii2-composer": true
         }
     },
     "require-dev": {
-        "craftcms/phpstan": "dev-main",
-        "phpstan/phpstan": "^2.3"
+        "larastan/larastan": "^3.0",
+        "phpstan/phpstan": "^2.1",
+        "orchestra/testbench": "^11.0"
     }
 }

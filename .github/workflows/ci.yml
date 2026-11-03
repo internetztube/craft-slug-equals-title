@@ -12,9 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           coverage: none
       - run: composer install --no-interaction --no-progress
+      # Larastan boots the app in every worker; booted once first, Craft's runtime folders exist before they race for them
+      - run: vendor/bin/testbench about > /dev/null
       - run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
       - uses: actions/setup-node@v4
         with:
@@ -22,17 +24,23 @@ jobs:
       - run: dev/dev.sh typecheck
 
   smoke:
-    # A real Craft 5 project with the plugin and Craft Commerce (dev/plugins.txt), seeded, then the console smoke test,
-    # the control panel over HTTP and the control panel in headless Chrome. Same script as local development:
-    # `dev/dev.sh coverage` (= `dev/dev.sh ci` with line coverage of src/).
-    name: smoke (PHP ${{ matrix.php }}, ${{ matrix.db }})
+    # A real Craft 6 project (a Laravel app) with the plugin, seeded, then the three suites. Same script as local
+    # development: `dev/dev.sh coverage` (= `dev/dev.sh ci` with line coverage of src/).
+    name: smoke (PHP ${{ matrix.php }}, ${{ matrix.db }}, ${{ matrix.adapter == '1' && 'Yii2 adapter' || 'no adapter' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2', '8.3']
+        php: ['8.5']
         db: [mysql, pgsql]
+        # with Craft's Yii2 adapter (categories): the coverage runs, every line of src/ is reachable
+        adapter: ['1']
+        include:
+          # and without it: the plugin works the same without the adapter (no coverage bar, its branches never run)
+          - php: '8.5'
+            db: pgsql
+            adapter: '0'
     services:
       mysql:
         image: mysql:8.0
@@ -56,6 +64,7 @@ jobs:
       DB_USER: ${{ matrix.db == 'mysql' && 'root' || 'craft' }}
       DB_PASSWORD: craft
       COMPOSER_NO_INTERACTION: '1'
+      YII2_ADAPTER: ${{ matrix.adapter }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,13 +82,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/composer
-          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('plugin/dev/plugins.txt', 'plugin/composer.json') }}
-          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-
-      - name: Install Craft and Commerce, seed, run smoke, e2e and the Chrome suite with line coverage of src/
-        run: plugin/dev/dev.sh coverage
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-adapter${{ matrix.adapter }}-${{ hashFiles('plugin/dev/plugins.txt', 'plugin/composer.json') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-adapter${{ matrix.adapter }}-
+      - name: Install Craft, seed, run smoke, e2e and the Chrome suite (with line coverage when the adapter is on)
+        run: plugin/dev/dev.sh ${{ matrix.adapter == '1' && 'coverage' || 'ci' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-${{ matrix.db }}-php${{ matrix.php }}
+          name: coverage-${{ matrix.db }}-php${{ matrix.php }}-adapter${{ matrix.adapter }}
           path: app/storage/coverage/html
           if-no-files-found: ignore
