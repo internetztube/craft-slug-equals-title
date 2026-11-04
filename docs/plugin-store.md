@@ -15,6 +15,7 @@ Craft fills in the slug once, when an entry is new. Rename the entry later and t
 - **Defaults per section.** Tick the sections, or single entry types of a section, in the settings, or set them per environment in `config/craft/slug-equals-title.php`.
 - **Remembered per entry.** The switch is stored with the entry, so later saves and `craft:resave:entries` do what the editor decided. Drafts take the choice of their entry.
 - **Craft’s rules.** Slugs are made the way Craft makes them for new entries: the site’s language, `limitAutoSlugsToAscii`, and a unique URI when two titles collide.
+- **Stop words, optional.** List words per site language and they fall out of the slug: “A weekend in Hong Kong” → `weekend-hong-kong`. Off until you list them.
 - **Nothing else is touched.** Entries switched off, revisions, Matrix blocks and entries without a title keep their slug.
 
 ## Tested

@@ -25,3 +25,5 @@ Wherever Craft edits an entry, the switch sits in its slug field, next to the in
 Tick the sections, or single entry types of a section, whose entries follow their title. A section with several entry types lists them under it, so one entry type can be on while the rest of the section is off. Lists set in `config/craft/slug-equals-title.php` win and are shown read-only.
 
 ![Defaults per section](screenshots/settings.jpg)
+
+Below the lists, optional stop words: a line per site language. Words listed there fall out of the title before it becomes the slug; the field is empty by default, and then nothing is dropped.

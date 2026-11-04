@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ## Unreleased
 
 ### Added
-- Stop words: words listed per site language in the settings (a line per language) or in `config/craft/slug-equals-title.php` fall out of the title before it becomes the slug, as whole words in any case. Empty by default; a title of nothing but stop words keeps every word. The config example lists a starting point for every language Craft ships, commented out. [#17](https://github.com/internetztube/craft-slug-equals-title/issues/17)
+- Stop words, optional: words listed per site language in the settings (a line per language) or in `config/craft/slug-equals-title.php` fall out of the title before it becomes the slug, as whole words in any case. Off until you list words, so the update changes no slug and needs no migration; a title of nothing but stop words keeps every word. The config example lists a starting point for every language Craft ships, commented out. [#17](https://github.com/internetztube/craft-slug-equals-title/issues/17)
 
 ## 4.0.0-alpha.1 - 2026-11-04
 
