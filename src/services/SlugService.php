@@ -99,6 +99,35 @@ final class SlugService extends Component
     }
 
     /** Entries of a section, categories and products; not nested entries (Matrix) and not other element types. */
+    /**
+     * The title without the stop words of the site's language ("de-CH" falls back to "de"): whole words, any case.
+     * The title as it is when no words are set, or when nothing but stop words would be left.
+     */
+    public function titleForSlug(string $title, string $language): string
+    {
+        $words = (SlugEqualsTitle::getInstance() ?? throw new InvalidConfigException('Plugin not loaded'))->getSettings()->stopWords;
+        $words = $words[$language] ?? $words[strtolower($language)] ?? $words[explode('-', $language)[0]] ?? [];
+        if ($words === []) {
+            return $title;
+        }
+        $pattern = '/(?<![\p{L}\p{N}])(?:' . implode('|', array_map(fn(string $word): string => preg_quote($word, '/'), $words)) . ')(?![\p{L}\p{N}])/iu';
+        $stripped = trim((string)preg_replace('/\s+/u', ' ', (string)preg_replace($pattern, ' ', $title)));
+        return preg_match('/[\p{L}\p{N}]/u', $stripped) === 1 ? $stripped : $title;
+    }
+
+    /**
+     * The sites' languages, for the settings page (a line of stop words per language): id and display name, each once.
+     * @return list<array{id: string, name: string}>
+     */
+    public static function siteLanguages(): array
+    {
+        $languages = [];
+        foreach (Craft::$app->getSites()->getAllSites() as $site) {
+            $languages[$site->language] ??= ['id' => $site->language, 'name' => Craft::$app->getI18n()->getLocaleById($site->language)->getDisplayName(Craft::$app->language)];
+        }
+        return array_values($languages);
+    }
+
     public function supports(ElementInterface $element): bool
     {
         return self::typeHandle($element) !== null;

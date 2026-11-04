@@ -14,6 +14,7 @@ Craft fills in the slug once, when an entry is new. Rename the entry later and t
 - **Defaults per type.** Tick the sections, category groups and product types in the plugin settings, or only some entry types of a section. Or set them per environment in `config/slug-equals-title.php`. Elements of those types follow their title unless their switch says otherwise.
 - **Remembered per element.** The switch is stored with the element, so `php craft resave/entries` and other console saves do what the editor decided. Drafts take the choice of their entry until they make their own.
 - **Craft's rules.** The slug is made the way Craft makes it for new entries: the site's language (ß → ss, ü → ue in German sites), `limitAutoSlugsToAscii`, and a unique URI (`-2`) when two titles collide.
+- **Stop words, if you want them.** List words per site language in the settings (or the config file) and they fall out of the title before it becomes the slug: "A weekend in Hong Kong" → `weekend-hong-kong`. Whole words, any case; a title of nothing but stop words keeps every word. Empty by default, so nothing changes unless you list words. The config file ships example lists for every language Craft speaks, commented out.
 - **Nothing else is touched.** Elements switched off, revisions, nested entries (Matrix) and elements without a title keep their slug.
 
 ## Tested
@@ -58,8 +59,14 @@ return [
     'enabledSections' => ['news', 'pages:landingPage'],   // sections, or "section:entryType"
     'enabledCategoryGroups' => ['topics'],               // category groups
     'enabledProductTypes' => [],                         // Craft Commerce product types
+    'stopWords' => [                                     // dropped from the title before it becomes the slug, per site language
+        'en' => ['a', 'an', 'and', 'the', 'of'],
+        'de' => ['der', 'die', 'das', 'und'],
+    ],
 ];
 ```
+
+[`src/config.php`](src/config.php) carries an example stop-word list for every language Craft speaks, commented out: uncomment yours and trim it. Japanese, Korean, Chinese and Thai have no spaces between words, so there is nothing to drop there.
 
 Types are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere. Settings saved by 3.0 are converted to UIDs by the update.
 

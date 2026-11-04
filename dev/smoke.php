@@ -260,6 +260,23 @@ $down = (new m261103_120000_elements_table())->down();
 ob_end_clean();
 check($down === false, 'the migration cannot be reverted');
 
+echo "Stop words\n";
+$settings->stopWords = ['en' => ['a', 'and', 'the'], 'de' => ['ein', 'in']];
+check($slugs->titleForSlug('A weekend in Hong Kong and more', 'en') === 'weekend in Hong Kong more', 'the stop words of the site language fall out of the title: whole words, any case');
+check($slugs->titleForSlug('The The', 'en') === 'The The', 'a title of nothing but stop words keeps every word');
+check($slugs->titleForSlug('Ein Tag in Wien', 'de-CH') === 'Tag Wien', '"de-CH" falls back to the words of "de"');
+check($slugs->titleForSlug('Andante', 'en') === 'Andante' && $slugs->titleForSlug('Brand new', 'fr') === 'Brand new', 'inside a word nothing is dropped, and a language without words keeps the title');
+$stopped = $make('news', 'Smoke: The road and the hills');
+check($reload($stopped)->slug === 'smoke-road-hills', 'a News entry gets its slug without them');
+$settings->stopWords = [];
+$stopped->title = 'Smoke: The road and the hills again';
+$save($stopped);
+check($reload($stopped)->slug === 'smoke-the-road-and-the-hills-again', 'without words, every word stays (the default)');
+$model = new Settings();
+$model->setAttributes(['stopWords' => ['en' => 'A, and  the,', 'de' => '', 'fr' => ['Le', 'le'], '' => 'x']]);
+check($model->stopWords === ['en' => ['a', 'and', 'the'], 'fr' => ['le']] && $model->validate(), 'the settings page posts a comma-separated line per language: trimmed, lower-cased, unique; languages without words are dropped');
+check(count(SlugService::siteLanguages()) === 2 && SlugService::siteLanguages()[1]['id'] === 'de', 'the settings page gets a line per site language (en, de)');
+
 echo "Settings migration\n";
 $projectConfig = Craft::$app->getProjectConfig();
 $converted = m261103_130000_settings_uids::toUids(['enabledSections' => ['news', ';', 'gone', $pagesSection->uid, 'news', 5], 'enabledCategoryGroups' => ['topics'], 'enabledProductTypes' => 7]);

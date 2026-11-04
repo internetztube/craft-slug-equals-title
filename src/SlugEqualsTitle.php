@@ -111,7 +111,8 @@ JS;
         $follow = $this->requestChoice($element) ?? (Craft::$app->getRequest()->getIsConsoleRequest() && $this->slugs->isEnabled($element));
         if ($follow) {
             // normalized and made unique by Craft's own slug and URI validators, which run after this event
-            $element->slug = ElementHelper::generateSlug((string)$element->title, null, $element->getSite()->language);
+            $language = $element->getSite()->language;
+            $element->slug = ElementHelper::generateSlug($this->slugs->titleForSlug((string)$element->title, $language), null, $language);
         }
     }
 
@@ -170,6 +171,7 @@ JS;
         return Craft::$app->getView()->renderTemplate('slug-equals-title/settings.twig', [
             'settings' => $this->getSettings(),
             'groups' => SlugService::settingGroups(),
+            'languages' => SlugService::siteLanguages(),
             'overrides' => is_array($fromFile) ? array_keys($fromFile) : [],
         ]);
     }

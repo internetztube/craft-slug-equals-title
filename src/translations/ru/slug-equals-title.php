@@ -8,4 +8,6 @@ return [
     'For the types you tick, the slug of a new element follows its title. Every element can decide for itself with the switch in its slug field.' => 'Для отмеченных типов slug нового элемента следует за его заголовком. Каждый элемент может решить сам переключателем в поле slug.',
     'This is being overridden by the {name} setting in config/slug-equals-title.php.' => 'Это переопределяется настройкой {name} в config/slug-equals-title.php.',
     'Tick a section for all its entries, or only some of its entry types.' => 'Отметьте раздел для всех его записей или только некоторые типы записей.',
+    'Stop words' => 'Стоп-слова',
+    'Words dropped from the title before it becomes the slug, per site language: whole words, comma-separated, any case. Leave empty to keep every word.' => 'Слова, убираемые из заголовка до того, как он станет слагом, для каждого языка сайта: целые слова, через запятую, без учёта регистра. Оставьте пустым, чтобы сохранить все слова.',
 ];
