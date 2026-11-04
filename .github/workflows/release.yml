@@ -1,0 +1,45 @@
+# On a version tag (3.1.0, 4.0.3.2, 4.0.0-alpha.1): the GitHub release, with the tag's section of CHANGELOG.md as its
+# notes; a tag with a suffix (-alpha, -beta, -rc) is a prerelease. The tag is the release: set the version in
+# composer.json and the date of the changelog entry, commit, `git tag X.Y.Z && git push origin X.Y.Z`.
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          # the tag's section: from its heading ("## 3.1.0 - 2026-11-04" or "## [3.1.0] - …") to the next "## " heading
+          awk -v v="$VERSION" '/^## /{ if (on) exit; on = ($2 == v || $2 == "[" v "]") } on && !/^## /' CHANGELOG.md \
+            | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > "$RUNNER_TEMP/notes.md"
+          if [ ! -s "$RUNNER_TEMP/notes.md" ]; then
+            echo "No section for $VERSION in CHANGELOG.md" >&2
+            exit 1
+          fi
+          printf '\n**Full changelog:** https://github.com/%s/blob/%s/CHANGELOG.md\n' "$GITHUB_REPOSITORY" "$GITHUB_SHA" >> "$RUNNER_TEMP/notes.md"
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Release $VERSION exists already; left as it is."
+            exit 0
+          fi
+          args=(--verify-tag --title "$VERSION" --notes-file "$RUNNER_TEMP/notes.md")
+          case "$VERSION" in *-*) args+=(--prerelease --latest=false) ;; esac
+          gh release create "$VERSION" "${args[@]}"
