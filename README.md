@@ -1,3 +1,5 @@
+> **Craft CMS 6:** this plugin is also available for Craft 6 as 4.x, a native Craft 6 plugin: [`4.x` branch](https://github.com/internetztube/craft-slug-equals-title/tree/4.x). This branch (3.x) is the Craft 5 version.
+
 # Slug Equals Title for Craft CMS 5
 
 **The slug follows the title. Per section by default, per entry when you want.**
@@ -23,7 +25,7 @@ Three test suites run on every push, on PHP 8.2 and 8.3, on MySQL 8 and PostgreS
 
 ## Requirements
 
-Craft CMS 5.0 or later, PHP 8.2 or later. For Craft 4, use the 2.x releases; for Craft 3, 1.x.
+Craft CMS 5.0 or later, PHP 8.2 or later. For Craft 6, use the 4.x releases ([`4.x` branch](https://github.com/internetztube/craft-slug-equals-title/tree/4.x), a native Craft 6 plugin); for Craft 4, 2.x; for Craft 3, 1.x.
 
 ## Installation
 
