@@ -27,3 +27,5 @@ Wherever Craft edits an element, the switch sits in its slug field: edit pages, 
 Tick the sections, category groups and product types whose elements follow their title. A section with several entry types lists them under it, so one entry type can be on while the rest of the section is off. Lists set in `config/slug-equals-title.php` win and are shown read-only.
 
 ![Defaults per section](screenshots/settings.jpg)
+
+Below the lists, optional stop words: a line per language of the sites (one `de` line for de-AT and de-DE alike). Words listed there fall out of the title before it becomes the slug; the field is empty by default, and then nothing is dropped.

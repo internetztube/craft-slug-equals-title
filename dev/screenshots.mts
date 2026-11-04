@@ -160,7 +160,8 @@ const SHOTS: Shot[] = [
         highlight: `[$$('#content .field')]`,
         inset: false,
         // the fields span the content pane; the close-up takes their left 800px, enough for the longest line
-        cover: `(() => { const r = regionOf($$('#content .field')); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + 800, bottom: r.y + r.height }) }]; })()`,
+        // the type lists only: the stop words block (and the language fields inside it) is a different story
+        cover: `(() => { const r = regionOf($$('#content .field').filter((f) => !f.querySelector('input[name^="settings[stopWords]"]'))); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + 800, bottom: r.y + r.height }) }]; })()`,
         caption: 'Defaults per section, entry type, group',
     },
 ];

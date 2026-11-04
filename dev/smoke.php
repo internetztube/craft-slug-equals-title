@@ -260,6 +260,23 @@ $down = (new m261103_120000_elements_table())->down();
 ob_end_clean();
 check($down === false, 'the migration cannot be reverted');
 
+echo "Stop words\n";
+$settings->setAttributes(['stopWords' => ['en' => ['a', 'and', 'the'], 'de' => ['ein', 'in']]]); // as the config file or the settings page set them
+check($slugs->titleForSlug('A weekend in Hong Kong and more', 'en') === 'weekend in Hong Kong more', 'the stop words of the site language fall out of the title: whole words, any case');
+check($slugs->titleForSlug('The The', 'en') === 'The The', 'a title of nothing but stop words keeps every word');
+check($slugs->titleForSlug('Ein Tag in Wien', 'de-AT') === 'Tag Wien' && $slugs->titleForSlug('Ein Tag in Wien', 'de-CH') === 'Tag Wien', 'the words are per language: de-AT and de-CH use those of "de" (Craft keeps them apart, the words do not)');
+check($slugs->titleForSlug('Andante', 'en') === 'Andante' && $slugs->titleForSlug('Brand new', 'fr') === 'Brand new', 'inside a word nothing is dropped, and a language without words keeps the title');
+$stopped = $make('news', 'Smoke: The road and the hills');
+check($reload($stopped)->slug === 'smoke-road-hills', 'a News entry gets its slug without them');
+$settings->setAttributes(['stopWords' => []]);
+$stopped->title = 'Smoke: The road and the hills again';
+$save($stopped);
+check($reload($stopped)->slug === 'smoke-the-road-and-the-hills-again', 'without words, every word stays (the default)');
+$model = new Settings();
+$model->setAttributes(['stopWords' => ['en' => 'A, and  the,', 'de' => '', 'fr' => ['Le', 'le'], '' => 'x', 'en-GB' => 'of, the']]);
+check($model->stopWords === ['en' => 'a, and, the, of', 'fr' => 'le'] && $model->validate(), 'the settings page posts a comma-separated line per language, the config file lists: one line of trimmed, lower-cased, unique words each; languages without words are dropped, a locale key (en-GB) counts as its language');
+check(array_column(SlugService::siteLanguages(), 'id') === ['en', 'de'], 'the settings page gets a line per language of the sites: en (for en-US), de');
+
 echo "Settings migration\n";
 $projectConfig = Craft::$app->getProjectConfig();
 $converted = m261103_130000_settings_uids::toUids(['enabledSections' => ['news', ';', 'gone', $pagesSection->uid, 'news', 5], 'enabledCategoryGroups' => ['topics'], 'enabledProductTypes' => 7]);

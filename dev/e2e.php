@@ -232,12 +232,23 @@ check($box('enabledSections', "$pagesUid:$landingUid") !== null && !str_contains
 check(preg_match('/<input[^>]*value="' . preg_quote($newsUid, '/') . '"[^>]*data-reverse-target="[^"]*section-news-types"/', $html) === 1 || preg_match('/data-reverse-target="[^"]*section-pages-types"/', $html) === 1, 'a section checkbox hides its entry types while it is ticked (Craft\'s own field toggle)');
 check(str_contains((string)$box('enabledCategoryGroups', $topicsUid), 'disabled') && str_contains((string)$box('enabledCategoryGroups', $topicsUid), 'checked') && str_contains($html, 'config/slug-equals-title.php'), 'Category Groups is read-only with a note: set in config/slug-equals-title.php (its handle there matches the group)');
 check(($commerce && str_contains($html, 'settings[enabledProductTypes][]')) || (!$commerce && !str_contains($html, 'enabledProductTypes')), 'Product Types are listed only with Commerce');
-[$status, $body, $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid, "$pagesUid:$landingUid"], 'enabledCategoryGroups' => '', 'enabledProductTypes' => '']]);
+$lang = explode('-', Craft::$app->getSites()->getPrimarySite()->language)[0]; // the page's lines are languages: en for en-US
+check(str_contains($html, "name=\"settings[stopWords][$lang]\"") && str_contains($html, 'name="settings[stopWords][de]"'), "Stop words: a line per site language ($lang, de), empty (" . (preg_match_all('/name="settings\[stopWords\]\[[^"]*\]"/', $html, $m) ? implode(', ', $m[0]) : 'none') . ')');
+[$status, $body, $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid, "$pagesUid:$landingUid"], 'enabledCategoryGroups' => '', 'enabledProductTypes' => '', 'stopWords' => [$lang => 'A, and, the', 'de' => '']]]);
 check($status === 200 && empty($json['errors']), "saving the settings succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
+usleep(500000); // the YAML is written as the request ends, after the response
 $stored = Craft::$app->getProjectConfig()->get('plugins.slug-equals-title.settings', true);
 check(($stored['enabledSections'] ?? null) === [$newsUid, "$pagesUid:$landingUid"] && empty($stored['enabledProductTypes']), 'the ticked section and entry type are stored by UID; an empty list is stored as none');
-[$status, , $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid], 'enabledCategoryGroups' => '', 'enabledProductTypes' => $commerce ? [$clothingUid] : '']]);
-check($status === 200 && empty($json['errors']), 'the seeded settings are back');
+// the YAML packs associative arrays (`__assoc__`); Craft unpacks them when it applies the config
+check(\craft\helpers\ProjectConfig::unpackAssociativeArray($stored['stopWords'] ?? []) === [$lang => 'a, and, the'], 'the stop words are stored per language as one line of lower-cased words; a language left empty is not stored');
+[$status, , $json] = $http->action('elements/save', ['elementId' => $news->id, 'siteId' => $news->siteId, 'title' => 'E2E: The news and the hills', 'slug' => $reload($news)->slug, SlugEqualsTitle::PARAM => '1']);
+check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-news-hills', 'and they are in effect: an entry saved with the switch on gets its slug without them (' . $reload($news)->slug . ')');
+[$status, $html] = $http->page('/admin/settings/plugins/slug-equals-title');
+check(preg_match('/name="settings\[stopWords\]\[' . preg_quote($lang, '/') . '\]"[^>]*value="a, and, the"|value="a, and, the"[^>]*name="settings\[stopWords\]\[' . preg_quote($lang, '/') . '\]"/', $html) === 1, 'and shown again as a comma-separated line');
+[$status, $body, $json] = $http->action('plugins/save-plugin-settings', ['pluginHandle' => 'slug-equals-title', 'settings' => ['enabledSections' => [$newsUid], 'enabledCategoryGroups' => '', 'enabledProductTypes' => $commerce ? [$clothingUid] : '', 'stopWords' => '']]);
+usleep(500000); // the YAML is written as the request ends, after the response
+Craft::$app->getProjectConfig()->reset(); // this process memoized the YAML at the previous read
+check($status === 200 && empty($json['errors']) && empty(Craft::$app->getProjectConfig()->get('plugins.slug-equals-title.settings.stopWords', true)), 'the seeded settings are back, no stop words');
 
 // --- cleanup
 foreach ([$news, $page] as $entry) {

@@ -8,4 +8,6 @@ return [
     'For the types you tick, the slug of a new element follows its title. Every element can decide for itself with the switch in its slug field.' => 'Fyrir þær gerðir sem þú hakar við fylgir slug nýs staks titli þess. Hvert stak getur ákveðið sjálft með rofanum í slug-reitnum.',
     'This is being overridden by the {name} setting in config/slug-equals-title.php.' => 'Þetta er yfirskrifað af stillingunni {name} í config/slug-equals-title.php.',
     'Tick a section for all its entries, or only some of its entry types.' => 'Hakaðu við hluta fyrir allar færslur hans, eða aðeins sumar færslugerðir hans.',
+    'Stop words' => 'Stopporð',
+    'Words dropped from the title before it becomes the slug, per language (de for every German site, whatever the country): whole words, comma-separated, any case. Leave empty to keep every word.' => 'Orð sem falla úr titlinum áður en hann verður að slóðarheiti, eftir tungumáli (de fyrir öll þýsk vefsvæði, hvert sem landið er): heil orð, aðskilin með kommum, óháð há- og lágstöfum. Skildu eftir autt til að halda öllum orðum.',
 ];

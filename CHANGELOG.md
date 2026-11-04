@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## Unreleased
 
+### Added
+- Stop words, optional: words listed per language in the settings (a line per language of the sites: `de` for de-AT and de-DE alike, which Craft keeps apart) or in `config/slug-equals-title.php` fall out of the title before it becomes the slug, as whole words in any case. Off until you list words, so the update changes no slug and needs no migration; a title of nothing but stop words keeps every word. The config example lists a starting point for every language Craft ships, commented out. [#17](https://github.com/internetztube/craft-slug-equals-title/issues/17)
+
 ## 3.1.0 - 2026-11-04
 
 A rewrite under the hood that keeps the behaviour: less code (no asset bundle, no build step, no record class) and three test suites.
