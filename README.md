@@ -62,6 +62,8 @@ return [
 ];
 ```
 
+Sections are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere.
+
 **Stop words are optional.** Nothing is dropped until you list words, so an update changes no slug. To drop them, list them per site language, on the settings page or in the config file:
 
 ```php
@@ -73,7 +75,6 @@ return [
 
 [`config/slug-equals-title.php`](config/slug-equals-title.php) carries an example list for every language Craft speaks, commented out: uncomment yours and trim it. Japanese, Korean, Chinese and Thai have no spaces between words, so there is nothing to drop there.
 
-Sections are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere.
 
 ## Supported element types
 
