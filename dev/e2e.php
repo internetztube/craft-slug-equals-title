@@ -210,19 +210,6 @@ check($status === 200 && empty($json['errors']), "publishing the draft succeeds 
 $published = $reload($news);
 check($published->title === 'E2E: Published title' && $published->slug === 'e2e-published-title' && $slugs->isEnabled($published), 'the canonical entry has the draft\'s title, a slug from it, and the switch on');
 
-// --- the demo site's front end (dev/templates): every template renders, with the plugin's choice per element
-echo "Front end\n";
-foreach ([
-    '/' => ['Addresses that follow their titles', 'slug follows the title', 'own slug'],
-    '/news/a-weekend-in-hong-kong' => ['It follows the title'],
-    '/pages/about' => ['It is its own'],
-    '/topics/city-guides' => ['City guides', 'It follows the title'],
-    '/de/' => ['Journal'],
-] as $path => $texts) {
-    [$status, $html] = $http->page($path);
-    check($status === 200 && !array_filter($texts, fn(string $text): bool => !str_contains($html, $text)), "front end $path shows “" . implode('”, “', $texts) . "” (HTTP $status)");
-}
-
 // --- the slideout editor (Craft's element editor in a slideout asks for the same screen as JSON)
 echo "Slideout\n";
 [$status, $body, $json] = $http->action('elements/edit', ['elementType' => Entry::class, 'elementId' => $page->id, 'siteId' => $page->siteId], 'GET', ['X-Craft-Namespace: e2e-slideout', 'X-Craft-Container-Id: e2e-slideout', 'X-Craft-Container-Type: slideout']);

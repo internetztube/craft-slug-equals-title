@@ -11,7 +11,7 @@ declare(strict_types=1);
  * config/slug-equals-title.php, so the settings page shows an override), and with Craft Commerce the product type
  * "Clothing" (on by default). Plus demo content for the screenshots: a travel journal "Transit" with a photo, an intro,
  * a rich text body and topics per article. Photos by Frederic Köberl (unsplash.com/@internetztube) are downloaded on the
- * first run; without network a drawn picture takes their place. The site's templates come from dev/templates.
+ * first run; without network a drawn picture takes their place.
  *
  * Run: dev/dev.sh seed   (or: php dev/seed.php <craft-project-dir>)
  */
@@ -93,7 +93,7 @@ function ensureSection(string $name, string $handle, string $type, EntryType $en
             'enabledByDefault' => true,
             'hasUrls' => true,
             'uriFormat' => $type === Section::TYPE_SINGLE ? '__home__' : "$handle/{slug}",
-            'template' => $type === Section::TYPE_SINGLE ? 'index' : '_element',
+            'template' => '', // URLs for unique URIs, no front end: the control panel is the demo
         ]);
     }
     $section->setSiteSettings($siteSettings);
@@ -204,7 +204,7 @@ function ensureCategoryGroup(string $name, string $handle, array $sites): Catego
     $group = new CategoryGroup(['name' => $name, 'handle' => $handle]);
     $siteSettings = [];
     foreach ($sites as $site) {
-        $siteSettings[$site->id] = new CategoryGroup_SiteSettings(['siteId' => $site->id, 'hasUrls' => true, 'uriFormat' => "$handle/{slug}", 'template' => '_element']);
+        $siteSettings[$site->id] = new CategoryGroup_SiteSettings(['siteId' => $site->id, 'hasUrls' => true, 'uriFormat' => "$handle/{slug}", 'template' => '']);
     }
     $group->setSiteSettings($siteSettings);
     $categories->saveGroup($group) or fail($group);
@@ -224,7 +224,7 @@ function ensureProductType(string $name, string $handle, array $sites): ?object
     $type = new \craft\commerce\models\ProductType(['name' => $name, 'handle' => $handle, 'hasDimensions' => false, 'maxVariants' => 1, 'hasVariantTitleField' => false, 'variantTitleFormat' => '{product.title}']);
     $siteSettings = [];
     foreach ($sites as $site) {
-        $siteSettings[$site->id] = new \craft\commerce\models\ProductTypeSite(['siteId' => $site->id, 'hasUrls' => true, 'uriFormat' => "$handle/{slug}", 'template' => '_element']);
+        $siteSettings[$site->id] = new \craft\commerce\models\ProductTypeSite(['siteId' => $site->id, 'hasUrls' => true, 'uriFormat' => "$handle/{slug}", 'template' => '']);
     }
     $type->setSiteSettings($siteSettings);
     $commerce->getProductTypes()->saveProductType($type) or fail($type);
@@ -306,25 +306,6 @@ foreach ([$heroImage, $intro, $body, $topicsField] as $field) {
 }
 addFieldToLayout($intro, $pageType);
 addFieldToLayout($body, $pageType);
-// the demo site's templates (dev/templates, copied by dev.sh): entries, categories and products on _element.twig
-foreach ([...Craft::$app->getEntries()->getAllSections(), ...Craft::$app->getCategories()->getAllGroups(), ...($productType ? [$productType] : [])] as $typeModel) {
-    $template = $typeModel instanceof Section && $typeModel->type === Section::TYPE_SINGLE ? 'index' : '_element';
-    $changed = false;
-    foreach ($typeModel->getSiteSettings() as $siteSettings) {
-        if ($siteSettings->template !== $template) {
-            $siteSettings->template = $template;
-            $changed = true;
-        }
-    }
-    if ($changed) {
-        match (true) {
-            $typeModel instanceof Section => Craft::$app->getEntries()->saveSection($typeModel),
-            $typeModel instanceof CategoryGroup => Craft::$app->getCategories()->saveGroup($typeModel),
-            default => \craft\commerce\Plugin::getInstance()->getProductTypes()->saveProductType($typeModel),
-        } or fail($typeModel);
-    }
-}
-
 // --- plugin settings (by UID, as the settings page stores them): News and Clothing in the control panel settings,
 // Topics through the config file (by handle)
 $plugin = SlugEqualsTitle::getInstance();

@@ -3,7 +3,7 @@
 #   dev/dev.sh          setup (if needed) + start server in background
 #   dev/dev.sh serve    start server in background (http://localhost:8080/admin, admin / password)
 #   dev/dev.sh stop     stop server
-#   dev/dev.sh seed     sites, sections, a category group, a product type (Commerce), the plugin settings, demo content and the demo site's templates (dev/seed.php, dev/templates)
+#   dev/dev.sh seed     sites, sections, a category group, a product type (Commerce), the plugin settings, demo content (dev/seed.php)
 #   dev/dev.sh smoke    seed, then dev/smoke.php: saves through Craft on the console (defaults, the remembered choice, drafts, sites, the migration)
 #   dev/dev.sh e2e      start the server and run dev/e2e.php (the control panel over HTTP: edit pages, saves with the switch, drafts, slideouts, settings)
 #   dev/dev.sh ui       start the server and run dev/ui.mts (the control panel in headless Chrome: the switch under the slug field, the preview, saving)
@@ -98,7 +98,7 @@ install_plugins() {
   for handle in $(php craft plugin/list | awk 'NF>5 && $(NF-1)=="No"{print $(NF-4)}'); do php craft plugin/install "$handle"; done
 }
 # seed twice: schema created in the first process is only fully usable in a fresh one (see ensureEntry in seed.php)
-seed()  { install_plugins && php craft migrate/all --no-backup --interactive=0 && cp "$PLUGIN_DIR"/dev/templates/*.twig "$PROJECT_DIR/templates/" && php "$PLUGIN_DIR/dev/seed.php" "$PROJECT_DIR" && php "$PLUGIN_DIR/dev/seed.php" "$PROJECT_DIR"; }
+seed()  { install_plugins && php craft migrate/all --no-backup --interactive=0 && php "$PLUGIN_DIR/dev/seed.php" "$PROJECT_DIR" && php "$PLUGIN_DIR/dev/seed.php" "$PROJECT_DIR"; }
 # the tests write plugin settings in console processes; write the project config YAML back afterwards so the control
 # panel does not report pending changes
 syncpc() { (cd "$PROJECT_DIR" && php craft project-config/write >/dev/null 2>&1) || true; }

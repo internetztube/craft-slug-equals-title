@@ -1,7 +1,7 @@
 <!--
 Text for the Plugin Store listing on plugins.craftcms.com (Craft Console → Plugins → Slug Equals Title).
 Short description: The slug follows the title. Per section by default, per entry when you want.
-Screenshots, in this order: edit-page, own-slug, slideout, front-end, settings (docs/screenshots/*.jpg); cover: docs/screenshots/cover.jpg.
+Screenshots, in this order: edit-page, own-slug, slideout, settings (docs/screenshots/*.jpg); cover: docs/screenshots/cover.jpg.
 Paste everything below this comment into “Long description”.
 -->
 

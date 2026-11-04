@@ -73,7 +73,7 @@ Every part of it, shown in the dev project: [docs/README.md](docs/README.md).
 
 ## Development
 
-`dev/dev.sh` creates a throwaway Craft 5 project with Craft Commerce, CKEditor and a German site, seeds the sections and the demo content (a travel journal, "Transit", with the author's own photos) and starts a server at http://localhost:8080/admin (admin / password). The front end at http://localhost:8080/ is a small travel journal ([`dev/templates`](dev/templates)) that lists every element with its address and whether its slug follows its title.
+`dev/dev.sh` creates a throwaway Craft 5 project with Craft Commerce, CKEditor and a German site, seeds the sections and the demo content (a travel journal, "Transit", with the author's own photos) and starts a server at http://localhost:8080/admin (admin / password).
 
 ```sh
 dev/dev.sh                      # setup + serve (PostgreSQL)

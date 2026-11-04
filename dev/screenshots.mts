@@ -148,15 +148,6 @@ const SHOTS: Shot[] = [
         highlight: SWITCH_AND_SLUG("document.querySelector('.slideout')"),
     },
     {
-        name: 'front-end',
-        title: 'The demo site',
-        text: 'A small travel journal the dev project serves: every element with its address and whether its slug follows its title.',
-        path: '/',
-        points: ['dev/templates, three files', 'Rename an article, its address moves', 'Pages keep their own slugs'],
-        highlight: `[$$('.rows')[0]]`,
-        inset: false,
-    },
-    {
         name: 'settings',
         title: 'Defaults per section',
         text: 'Pick the sections, category groups and product types whose elements follow their title, or single entry types of a section. Or set them per environment in config/slug-equals-title.php.',

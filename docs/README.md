@@ -22,12 +22,6 @@ Wherever Craft edits an element, the switch sits in its slug field: edit pages, 
 
 ![In slideouts too](screenshots/slideout.jpg)
 
-## The demo site
-
-The dev project's front end: every article, page, topic and product with its address, and whether its slug follows its title (through the plugin's service, `craft.app.plugins.getPlugin('slug-equals-title').slugs.isEnabled(element)`). Rename an article in the control panel and its address moves.
-
-![The demo site](screenshots/front-end.jpg)
-
 ## Defaults per section
 
 Tick the sections, category groups and product types whose elements follow their title. A section with several entry types lists them under it, so one entry type can be on while the rest of the section is off. Lists set in `config/slug-equals-title.php` win and are shown read-only.
