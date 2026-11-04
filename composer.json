@@ -2,7 +2,7 @@
     "name": "internetztube/craft-slug-equals-title",
     "description": "Keeps the slug equal to the title: per section, category group or product type by default, and per element with a switch under the slug field.",
     "type": "craft-plugin",
-    "version": "3.1.0",
+    "version": "3.1.1",
     "keywords": [
         "craft",
         "cms",
