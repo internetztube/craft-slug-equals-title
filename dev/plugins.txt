@@ -1,0 +1,2 @@
+craftcms/commerce:^5.0
+craftcms/ckeditor:^4.0

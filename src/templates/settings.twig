@@ -1,37 +1,64 @@
-{% import "_includes/forms" as forms %}
+{% import '_includes/forms.twig' as forms %}
 
-<h2>Slug equals Title</h2>
-<p>For each type selected here, the slug is overwritten by default. You can overwrite this default value manually in the edit form.</p>
+<p>{{ 'For the types you tick, the slug of a new element follows its title. Every element can decide for itself with the switch in its slug field.'|t('slug-equals-title') }}</p>
 
-{% if sections | length %}
-    {{ forms.checkboxSelectField({
-        label: "Sections",
-        options: sections,
-        name: "enabledSections",
-        showAllOption: false,
-    }) }}
-    <input type="hidden" name="enabledSections[]" value=";" />
-{% endif %}
-
-{% if categoryGroups | length %}
-    {{ forms.checkboxSelectField({
-        label: "Category Groups",
-        options: categoryGroups,
-        name: "enabledCategoryGroups",
-        showAllOption: false,
-    }) }}
-    <input type="hidden" name="enabledCategoryGroups[]" value=";" />
-{% endif %}
-
-{% if productTypes is defined and productTypes | length %}
-    {{ forms.checkboxSelectField({
-        label: "Product Types",
-        options: productTypes,
-        name: "enabledProductTypes",
-        showAllOption: false,
-    }) }}
-    <input type="hidden" name="enabledProductTypes[]" value=";" />
-{% endif %}
-
-
-
+{% for name, group in groups %}
+    {% if group.types|length %}
+        {% set values = attribute(settings, name) %}
+        {% set disabled = name in overrides %}
+        {% set common = {
+            label: group.label,
+            errors: settings.getErrors(name),
+            warning: disabled ? 'This is being overridden by the {name} setting in config/slug-equals-title.php.'|t('slug-equals-title', { name: name }),
+        } %}
+        {% if name == 'enabledSections' %}
+            {# a section for all its entries; under a section with several entry types, each of them on its own #}
+            {% set sections %}
+                {{ hiddenInput(name, '') }}
+                <fieldset class="checkbox-select">
+                    {% for section in group.types %}
+                        {% set typesId = "section-#{section.handle}-types" %}
+                        {% set hasTypes = section.entryTypes|length > 1 %}
+                        <div class="checkbox-select-item">
+                            {{ forms.checkbox({
+                                label: section.name,
+                                name: "#{name}[]",
+                                value: section.uid,
+                                checked: section.uid in values or section.handle in values,
+                                disabled: disabled,
+                                reverseToggle: hasTypes ? typesId : null,
+                            }) }}
+                        </div>
+                        {% if hasTypes %}
+                            <div id="{{ typesId }}" class="{{ section.uid in values or section.handle in values ? 'hidden' }}" style="padding-left: 24px;">
+                                {% for entryType in section.entryTypes %}
+                                    <div class="checkbox-select-item">
+                                        {{ forms.checkbox({
+                                            label: entryType.name,
+                                            name: "#{name}[]",
+                                            value: "#{section.uid}:#{entryType.uid}",
+                                            checked: "#{section.uid}:#{entryType.uid}" in values or "#{section.handle}:#{entryType.handle}" in values,
+                                            disabled: disabled,
+                                        }) }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </fieldset>
+            {% endset %}
+            {{ forms.field(common|merge({
+                instructions: 'Tick a section for all its entries, or only some of its entry types.'|t('slug-equals-title'),
+            }), sections) }}
+        {% else %}
+            {# the config file may name types by handle: shown as ticked too #}
+            {{ forms.checkboxSelectField(common|merge({
+                name: name,
+                options: group.types|map(type => { label: type.name, value: type.uid, checked: type.uid in values or type.handle in values }),
+                values: values,
+                showAllOption: false,
+                disabled: disabled,
+            })) }}
+        {% endif %}
+    {% endif %}
+{% endfor %}
