@@ -16,7 +16,7 @@ This is the Craft 6 version (4.x). Sites on Craft 5 use [3.x](https://github.com
 - **Defaults per section.** Tick the sections, or single entry types of a section, in the plugin settings, or set them per environment in `config/craft/slug-equals-title.php`. Their entries follow their title unless their switch says otherwise.
 - **Remembered per entry.** The switch is stored with the entry, so later editor saves, `php artisan craft:resave:entries` and other console saves do what the editor decided. Drafts take the choice of their entry until they make their own.
 - **Craft's rules.** The slug is made the way Craft makes it for new entries: the site's language (ß → ss, ü → ue in German sites), `limitAutoSlugsToAscii`, and a unique URI (`-2`) when two titles collide.
-- **Stop words, optional.** Nothing is dropped unless you list words. List them per site language in the settings (or the config file) and they fall out of the title before it becomes the slug: "A weekend in Hong Kong" → `weekend-hong-kong`. Whole words, any case; a title of nothing but stop words keeps every word. The config file ships example lists for every language Craft speaks, commented out.
+- **Stop words, optional.** Nothing is dropped unless you list words. List them per language in the settings (or the config file) and they fall out of the title before it becomes the slug: "A weekend in Hong Kong" → `weekend-hong-kong`. Whole words, any case; a title of nothing but stop words keeps every word. The config file ships example lists for every language Craft speaks, commented out.
 - **Nothing else is touched.** Entries switched off, revisions, nested entries (Matrix) and entries without a title keep their slug. Saves without an editor (queue jobs, index actions, imports, other plugins) leave slugs alone.
 
 ## Tested
@@ -64,7 +64,7 @@ return [
 
 Sections are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere.
 
-**Stop words are optional.** Nothing is dropped until you list words, so an update changes no slug. To drop them, list them per site language, on the settings page or in the config file:
+**Stop words are optional.** Nothing is dropped until you list words, so an update changes no slug. To drop them, list them per language, on the settings page or in the config file. Per language, not per site: Craft keeps de-AT and de-DE apart as languages, the words do not, so `de` serves every German site and you enter them once:
 
 ```php
 'stopWords' => [

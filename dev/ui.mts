@@ -64,6 +64,7 @@ const ui = (): Promise<{ present: boolean, inSlugField: boolean, inputHidden: bo
 /** Saves (the editor stays on the page) and opens the page again, so what is read is what was stored. */
 const saveAndReload = async (path: string) => {
     await run('await save();');
+    await sleep(800); // the editor follows the save with a layout refresh and a redirect; a reload in between can 404
     await visit(path);
 };
 const failureDir = join(projectDir, 'storage', 'ui-failures');

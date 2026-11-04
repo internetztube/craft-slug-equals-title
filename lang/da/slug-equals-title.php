@@ -8,5 +8,5 @@ return [
     'This is being overridden by the {name} setting in config/craft/slug-equals-title.php.' => 'Dette tilsidesættes af indstillingen {name} i config/craft/slug-equals-title.php.',
     'Tick a section for all its entries, or only some of its entry types.' => 'Markér en sektion for alle dens indlæg, eller kun nogle af dens indlægstyper.',
     'Stop words' => 'Stopord',
-    'Words dropped from the title before it becomes the slug, per site language: whole words, comma-separated, any case. Leave empty to keep every word.' => 'Ord, der fjernes fra titlen, før den bliver til slug, pr. websprog: hele ord, kommaseparerede, uanset store og små bogstaver. Tom: alle ord bliver.',
+    'Words dropped from the title before it becomes the slug, per language (de for every German site, whatever the country): whole words, comma-separated, any case. Leave empty to keep every word.' => 'Ord, der fjernes fra titlen, før den bliver til slug, pr. sprog (de for alle tyske websteder, uanset land): hele ord, kommaseparerede, uanset store og små bogstaver. Tom: alle ord bliver.',
 ];

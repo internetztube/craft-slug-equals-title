@@ -8,5 +8,5 @@ return [
     'This is being overridden by the {name} setting in config/craft/slug-equals-title.php.' => 'Это переопределяется настройкой {name} в config/craft/slug-equals-title.php.',
     'Tick a section for all its entries, or only some of its entry types.' => 'Отметьте раздел для всех его записей или только некоторые типы записей.',
     'Stop words' => 'Стоп-слова',
-    'Words dropped from the title before it becomes the slug, per site language: whole words, comma-separated, any case. Leave empty to keep every word.' => 'Слова, убираемые из заголовка до того, как он станет слагом, для каждого языка сайта: целые слова, через запятую, без учёта регистра. Оставьте пустым, чтобы сохранить все слова.',
+    'Words dropped from the title before it becomes the slug, per language (de for every German site, whatever the country): whole words, comma-separated, any case. Leave empty to keep every word.' => 'Слова, убираемые из заголовка до того, как он станет слагом, для каждого языка (de для всех немецких сайтов, независимо от страны): целые слова, через запятую, без учёта регистра. Оставьте пустым, чтобы сохранить все слова.',
 ];

@@ -17,10 +17,11 @@ return [
     // Sections, or single entry types of a section
     'enabledSections' => ['news', 'pages:landingPage'],
 
-    // Words dropped from the title before it becomes the slug, per site language ("de-CH" falls back to "de", "en-GB"
-    // to "en"): whole words, any case. Nothing is dropped unless you list words. Below, a starting point for every
-    // language Craft ships, as examples rather than defaults: uncomment yours and trim it to taste. Japanese, Korean,
-    // Chinese and Thai have no spaces between words, so there is nothing to drop there.
+    // Words dropped from the title before it becomes the slug, per language: whole words, any case. Keyed by language,
+    // not locale: "de" serves de-AT, de-CH and de-DE alike (Craft keeps them apart, the words do not; a key like
+    // "de-CH" counts as "de"). Nothing is dropped unless you list words. Below, a starting point for every language
+    // Craft ships, as examples rather than defaults: uncomment yours and trim it to taste. Japanese, Korean, Chinese
+    // and Thai have no spaces between words, so there is nothing to drop there.
     // 'stopWords' => [
     //     'ar' => ['و', 'في', 'من', 'على', 'إلى', 'عن', 'مع', 'أو'],
     //     'cs' => ['a', 'i', 'v', 've', 'na', 'do', 'z', 'ze', 's', 'se', 'o', 'k', 'ke', 'u', 'že', 'pro'],

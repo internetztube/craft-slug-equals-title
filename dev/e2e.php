@@ -302,9 +302,8 @@ try {
     $optionValues = array_column($sections['props']['options'] ?? [], 'value', 'label');
     check($status === 200 && $sections !== null && $sections['mode'] === 'disabled' && str_contains((string)($sections['node']['warning'] ?? ''), 'config/craft/slug-equals-title.php'), 'with the config file in place, Sections is read-only with a note (' . json_encode($sections['node'] ?? null) . ')');
     check(($optionValues['News'] ?? null) === 'news' && ($optionValues['↳ Landing page'] ?? null) === 'pages:landingPage' && ($optionValues['Pages'] ?? null) === $pagesSection->uid && ($json['props']['form']['values']['settings']['enabledSections'] ?? null) === ['news', 'pages:landingPage'], 'News and Landing page (named by handle in the file) are ticked, Pages (by UID) is not');
-    $primary = Sites::getPrimarySite()->language;
-    $stopLine = $byPath["settings.stopWords.$primary"] ?? null;
-    check($stopLine !== null && $stopLine['mode'] === 'disabled' && ($json['props']['form']['values']['settings']['stopWords'][$primary] ?? null) === 'the' && str_contains(json_encode($json['props']['form']) ?: '', 'the stopWords setting'), "the stop words from the file (\"en\", shown for $primary) are read-only with a note");
+    $stopLine = $byPath['settings.stopWords.en'] ?? null;
+    check($stopLine !== null && $stopLine['mode'] === 'disabled' && ($json['props']['form']['values']['settings']['stopWords']['en'] ?? null) === 'the' && str_contains(json_encode($json['props']['form']) ?: '', 'the stopWords setting'), 'the stop words from the file are read-only with a note');
     $landingEntry = $make('pages', 'E2E: Landing', ['typeId' => $landing->id, 'slug' => 'e2e-landing']);
     [$status, , $json] = $editorSave($landingEntry, ['title' => 'E2E: Landing renamed']);
     check($status === 200 && empty($json['errors']) && $reload($landingEntry)->slug === 'e2e-landing-renamed', 'a Landing page entry follows its title: the file turned its entry type on');
@@ -312,7 +311,7 @@ try {
 } finally {
     unlink($configFile);
 }
-$lang = Sites::getPrimarySite()->language;
+$lang = explode('-', Sites::getPrimarySite()->language)[0]; // the page's lines are languages: en for en-US
 [$status, , $json] = $http->page('/admin/settings/plugins/slug-equals-title');
 $byPath = [];
 foreach (nodes($json['props']['form'] ?? null) as $node) {

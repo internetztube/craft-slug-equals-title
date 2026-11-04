@@ -45,14 +45,14 @@ final class Slugs
     }
 
     /**
-     * The title without the stop words of the site's language ("de-CH" falls back to "de"): whole words, any case.
+     * The title without the stop words of the site's language (de-AT and de-DE both use "de"): whole words, any case.
      * The title as it is when no words are set, or when nothing but stop words would be left.
      */
     public function titleForSlug(string $title, ?string $language): string
     {
         $language ??= '';
         $lines = app(Settings::class)->stopWords;
-        $line = $lines[$language] ?? $lines[strtolower($language)] ?? $lines[explode('-', $language)[0]] ?? '';
+        $line = $lines[strtolower(explode('-', $language)[0])] ?? '';
         if ($line === '') {
             return $title;
         }
@@ -63,7 +63,8 @@ final class Slugs
     }
 
     /**
-     * The sites' languages, for the settings page (a line of stop words per language): id and display name, each once.
+     * The languages of the sites, for the settings page (a line of stop words each): "de" for de-AT and de-DE alike,
+     * with the language's display name. Craft has no such grouping of its own.
      * @return list<array{id: string, name: string}>
      */
     public static function siteLanguages(): array
@@ -72,7 +73,7 @@ final class Slugs
         /** @var list<Site> $sites */
         $sites = Sites::getAllSites()->all();
         foreach ($sites as $site) {
-            $language = (string)$site->language;
+            $language = strtolower(explode('-', (string)$site->language)[0]);
             $languages[$language] ??= ['id' => $language, 'name' => I18N::getLocaleById($language)->getDisplayName(app()->getLocale())];
         }
         return array_values($languages);

@@ -50,12 +50,12 @@ final class SettingsForm
             $control->mode(ControlMode::Disabled);
             $field->warning($overridden('enabledSections'));
         }
-        // the stop words: a line per site language, with the words that apply to it (a language's own, else its base language's)
+        // the stop words: a line per language of the sites
         $words = $settings->stopWords;
         $lines = [];
         foreach (Slugs::siteLanguages() as $language) {
             $text = Text::make(['stopWords', $language['id']])
-                ->value($words[$language['id']] ?? $words[explode('-', $language['id'])[0]] ?? '')
+                ->value($words[$language['id']] ?? '')
                 ->placeholder('a, an, and, the')
                 ->mode(in_array('stopWords', $overrides, true) ? ControlMode::Disabled : ControlMode::Editable);
             $lines[] = Field::make("{$language['name']} ({$language['id']})", $text)->width(\CraftCms\Cms\Form\Enums\FieldWidth::Full); // a row each, not side by side
@@ -63,7 +63,7 @@ final class SettingsForm
         $stopWords = Group::make('stopWords', $lines)
             ->asField() // a label, instructions and a warning like a field's; a plain group shows its label only
             ->label(t('Stop words', category: 'slug-equals-title'))
-            ->instructions(t('Words dropped from the title before it becomes the slug, per site language: whole words, comma-separated, any case. Leave empty to keep every word.', category: 'slug-equals-title'));
+            ->instructions(t('Words dropped from the title before it becomes the slug, per language (de for every German site, whatever the country): whole words, comma-separated, any case. Leave empty to keep every word.', category: 'slug-equals-title'));
         if (in_array('stopWords', $overrides, true)) {
             $stopWords->warning($overridden('stopWords'));
         }
