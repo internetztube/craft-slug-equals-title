@@ -51,14 +51,13 @@ $targets = [
     'home' => ['path' => editPath(Entry::find()->section('home')->status(null)->one() ?? throw new RuntimeException('No Home entry (run dev/dev.sh seed)'))],
     'settings' => '/admin/settings/plugins/slug-equals-title',
     'uids' => ['news' => $news->uid, 'pages' => $pages->uid, 'landingPage' => EntryTypes::getEntryTypeByHandle('landingPage')?->uid],
-    'adapter' => class_exists(Slugs::CATEGORY),
 ];
 if ($mode === 'fixtures') {
     // the seeded settings (dev/seed.php): a run that failed on the settings page may have left others
     $plugin = Plugins::getPlugin('slug-equals-title') ?? throw new RuntimeException('Plugin not installed');
     assert($plugin instanceof SlugEqualsTitle);
     if ($plugin->getSettings()->enabledSections !== [$news->uid]) {
-        Plugins::savePluginSettings($plugin, ['enabledSections' => [$news->uid], 'enabledCategoryGroups' => [], 'enabledProductTypes' => []]);
+        Plugins::savePluginSettings($plugin, ['enabledSections' => [$news->uid]]);
         ProjectConfig::saveModifiedConfigData();
     }
     $make = function(string $section, string $title, array $attributes = []): Entry {

@@ -1,6 +1,6 @@
 {
     "name": "internetztube/craft-slug-equals-title",
-    "description": "Keeps the slug equal to the title: per section, entry type, category group or product type by default, and per element with a switch in the slug field.",
+    "description": "Keeps the slug of entries equal to their title: per section or entry type by default, and per entry with a switch in the slug field.",
     "type": "craft-plugin",
     "version": "4.0.0-alpha.1",
     "keywords": [
@@ -47,8 +47,7 @@
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
-            "craftcms/plugin-installer": true,
-            "yiisoft/yii2-composer": true
+            "craftcms/plugin-installer": true
         }
     },
     "require-dev": {

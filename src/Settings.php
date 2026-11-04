@@ -8,27 +8,15 @@ use CraftCms\Cms\Plugin\PluginSettings;
 use Override;
 
 /**
- * Which types get the slug from the title by default. Each element decides for itself with the switch on its edit
- * form; these are the defaults for elements that never made a choice. Values are UIDs (the settings page) or handles
+ * Which sections get the slug from the title by default. Each entry decides for itself with the switch on its edit
+ * form; this is the default for entries that never made a choice. Values are UIDs (the settings page) or handles
  * (config/craft/slug-equals-title.php, settings saved before 3.1); a section lists all its entries, "section:entryType"
- * only the entries of that type.
+ * only the entries of that type. Other keys of older settings (category groups, product types of 3.x) are ignored.
  */
 class Settings extends PluginSettings
 {
-    public const LISTS = ['enabledSections', 'enabledCategoryGroups', 'enabledProductTypes'];
-
     /** @var list<string> Sections (or "section:entryType") whose entries follow the title by default. */
     public array $enabledSections = [] {
-        set(mixed $value) => self::handles($value);
-    }
-
-    /** @var list<string> Category groups whose categories follow the title by default. */
-    public array $enabledCategoryGroups = [] {
-        set(mixed $value) => self::handles($value);
-    }
-
-    /** @var list<string> Commerce product types whose products follow the title by default. */
-    public array $enabledProductTypes = [] {
         set(mixed $value) => self::handles($value);
     }
 
@@ -50,10 +38,6 @@ class Settings extends PluginSettings
         return [
             'enabledSections' => ['array'],
             'enabledSections.*' => ['string'],
-            'enabledCategoryGroups' => ['array'],
-            'enabledCategoryGroups.*' => ['string'],
-            'enabledProductTypes' => ['array'],
-            'enabledProductTypes.*' => ['string'],
         ];
     }
 }

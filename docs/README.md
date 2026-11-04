@@ -18,10 +18,10 @@ Switch it off for one entry and the slug stays what you type. The choice is reme
 
 ## In slideouts too
 
-Wherever Craft edits an element, the switch sits next to its slug field: Craft 6's edit pages and the slideouts (there, while it is on, “Overwritten by title” takes the input's place). With Craft's Yii2 adapter, categories have it as well. Revisions show it read-only. Entry types that hide the slug field show no switch.
+Wherever Craft edits an entry, the switch sits in its slug field, next to the input: Craft 6's edit pages and the slideouts. While it is on, “Overwritten by title” takes the input's place. Revisions show it read-only. Entry types that hide the slug field show no switch.
 
 ## Defaults per section
 
-Tick the sections, category groups and single entry types whose elements follow their title. A section with several entry types lists them under it, so one entry type can be on while the rest of the section is off. Lists set in `config/craft/slug-equals-title.php` win and are shown read-only.
+Tick the sections, or single entry types of a section, whose entries follow their title. A section with several entry types lists them under it, so one entry type can be on while the rest of the section is off. Lists set in `config/craft/slug-equals-title.php` win and are shown read-only.
 
 ![Defaults per section](screenshots/settings.jpg)

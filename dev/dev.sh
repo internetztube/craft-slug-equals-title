@@ -4,7 +4,7 @@
 #   dev/dev.sh setup    database, project, Craft and the plugin installed; no seed
 #   dev/dev.sh serve    start server in background (http://localhost:8130/admin, admin / password)
 #   dev/dev.sh stop     stop server
-#   dev/dev.sh seed     sites, sections, a category group (with the Yii2 adapter), the plugin settings, demo content (dev/seed.php)
+#   dev/dev.sh seed     sites, sections, the plugin settings, demo content (dev/seed.php)
 #   dev/dev.sh smoke    seed, then dev/smoke.php: saves through Craft on the console (defaults, the remembered choice, drafts, sites)
 #   dev/dev.sh e2e      start the server and run dev/e2e.php (the control panel over HTTP: edit pages, saves with the switch, drafts, slideouts, settings)
 #   dev/dev.sh ui       start the server and run dev/ui.mts (the control panel in headless Chrome: the switch in the slug field, saving)
@@ -15,7 +15,6 @@
 #   dev/dev.sh typecheck  tsc over the TypeScript dev scripts (dev/*.mts; installs typescript into dev/node_modules once)
 # Env: PROJECT_DIR (default ../craft-slug-equals-title-dev6), PORT (8130), DB_DRIVER (pgsql|mysql, default pgsql),
 #      DB_NAME (default: project dir name), DB_SERVER (127.0.0.1), DB_PORT, DB_USER, DB_PASSWORD (local defaults: no password).
-#      YII2_ADAPTER=1 installs Craft's Yii2 adapter into the project (categories); it stays installed.
 set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -38,6 +37,8 @@ MYSQL="mysql -u$DB_USER -h$DB_SERVER -P$DB_PORT --protocol=tcp${DB_PASSWORD:+ -p
 # server uses it, and its optimizer drops lines such as `continue;` from what pcov sees)
 PHP=(php -d memory_limit=1G)
 ROUTER="$PROJECT_DIR/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+# this project's servers, with either router (a plain one may be running while a coverage run starts): what stop() kills
+ROUTERS="$ROUTER|$PLUGIN_DIR/dev/coverage-router.php"
 if [ "${COVERAGE:-0}" = 1 ]; then export COVERAGE_PROJECT_DIR="$PROJECT_DIR"; PHP=(php -d memory_limit=1G -d pcov.enabled=1 -d opcache.enable=0 -d "pcov.directory=$PLUGIN_DIR" -d "auto_prepend_file=$PLUGIN_DIR/dev/coverage.php"); ROUTER="$PLUGIN_DIR/dev/coverage-router.php"; fi
 
 db_up() {
@@ -64,7 +65,6 @@ scaffold() {
   composer config repositories.slug-equals-title "{\"type\":\"path\",\"url\":\"$PLUGIN_DIR\",\"options\":{\"symlink\":true}}"
   composer config minimum-stability dev
   composer config prefer-stable true
-  composer config allow-plugins.yiisoft/yii2-composer true
   composer require internetztube/craft-slug-equals-title:@dev -W --no-interaction
   composer require --dev phpunit/php-code-coverage --no-interaction
   cp .env.example .env
@@ -91,11 +91,6 @@ install() {
 
 install_plugins() {
   cd "$PROJECT_DIR"
-  # YII2_ADAPTER=1: Craft's Yii2 adapter, the version of the installed Craft (categories)
-  if [ "${YII2_ADAPTER:-0}" = 1 ] && ! composer show craftcms/yii2-adapter >/dev/null 2>&1; then
-    # -W: it needs older Symfony packages (symfony/mailer 7) than a fresh Craft 6 project locks
-    composer require "craftcms/yii2-adapter:$(composer show craftcms/cms | sed -n 's/^versions : \* //p')" -W --no-interaction --quiet || return 1
-  fi
   grep -v '^#' "$PLUGIN_DIR/dev/plugins.txt" | grep -q . || return 0
   grep -v '^#' "$PLUGIN_DIR/dev/plugins.txt" | xargs composer require --no-interaction --quiet
 }
@@ -116,10 +111,10 @@ screenshots() { serve && queue && (cd "$PLUGIN_DIR" && node dev/screenshots.mts 
 # the parent already lost (orphans) go too, and wait until the port is free for the next serve()
 listening() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }
 stop() {
-  pkill -f -- "-S localhost:$PORT $ROUTER" 2>/dev/null || true
+  pkill -f -- "-S localhost:$PORT ($ROUTERS)" 2>/dev/null || true
   rm -f "$PIDFILE"
   for _ in $(seq 1 20); do listening || break; sleep 0.25; done
-  listening && pkill -9 -f -- "-S localhost:$PORT $ROUTER" 2>/dev/null || true
+  listening && pkill -9 -f -- "-S localhost:$PORT ($ROUTERS)" 2>/dev/null || true
 }
 
 serve() {

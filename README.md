@@ -2,7 +2,7 @@
 
 **The slug follows the title. Per section by default, per entry when you want.**
 
-Craft fills in the slug once, when an entry is new. Rename the entry later and the slug stays behind. This plugin keeps the two together: for the sections, entry types and category groups you pick, every save from the editor sets the slug from the title. Each entry has a switch next to its slug field to opt out (or in) and keep a slug of its own.
+Craft fills in the slug once, when an entry is new. Rename the entry later and the slug stays behind. This plugin keeps the two together: for the sections and entry types you pick, every save from the editor sets the slug from the title. Each entry has a switch next to its slug field to opt out (or in) and keep a slug of its own.
 
 This is the Craft 6 version (4.x). Sites on Craft 5 use [3.x](https://github.com/internetztube/craft-slug-equals-title/tree/3.x); [`UPGRADE.md`](UPGRADE.md) lists what changes.
 
@@ -12,19 +12,19 @@ This is the Craft 6 version (4.x). Sites on Craft 5 use [3.x](https://github.com
 
 ## What you get
 
-- **A switch next to the slug field.** "Slug equals title", a native Craft lightswitch in the editor sidebar of entries (and, with Craft's Yii2 adapter, categories), on edit pages and in slideouts. While it is on, every save from the editor sets the slug from the title.
-- **Defaults per type.** Tick the sections, single entry types of a section, and category groups in the plugin settings, or set them per environment in `config/craft/slug-equals-title.php`. Elements of those types follow their title unless their switch says otherwise.
-- **Remembered per element.** The switch is stored with the element, so later editor saves, `php artisan craft:resave:entries` and other console saves do what the editor decided. Drafts take the choice of their entry until they make their own.
+- **A switch next to the slug field.** "Slug equals title", a native Craft lightswitch in the editor sidebar of entries, on edit pages and in slideouts. While it is on, every save from the editor sets the slug from the title.
+- **Defaults per section.** Tick the sections, or single entry types of a section, in the plugin settings, or set them per environment in `config/craft/slug-equals-title.php`. Their entries follow their title unless their switch says otherwise.
+- **Remembered per entry.** The switch is stored with the entry, so later editor saves, `php artisan craft:resave:entries` and other console saves do what the editor decided. Drafts take the choice of their entry until they make their own.
 - **Craft's rules.** The slug is made the way Craft makes it for new entries: the site's language (ß → ss, ü → ue in German sites), `limitAutoSlugsToAscii`, and a unique URI (`-2`) when two titles collide.
-- **Nothing else is touched.** Elements switched off, revisions, nested entries (Matrix) and elements without a title keep their slug. Saves without an editor (queue jobs, index actions, imports, other plugins) leave slugs alone.
+- **Nothing else is touched.** Entries switched off, revisions, nested entries (Matrix) and entries without a title keep their slug. Saves without an editor (queue jobs, index actions, imports, other plugins) leave slugs alone.
 
 ## Tested
 
-Three test suites run on every push, on PHP 8.5, on MySQL 8 and PostgreSQL 14, with and without Craft's Yii2 adapter: the console, the control panel over HTTP, and the control panel in headless Chrome. 100 % line coverage of `src/`. [`dev/TESTS.md`](dev/TESTS.md) lists every check in one sentence.
+Three test suites run on every push, on PHP 8.5, on MySQL 8 and PostgreSQL 14: the console, the control panel over HTTP, and the control panel in headless Chrome. 100 % line coverage of `src/`. [`dev/TESTS.md`](dev/TESTS.md) lists every check in one sentence.
 
 ## Requirements
 
-Craft CMS 6.0 (alpha 20 or later) and PHP 8.5. Categories need Craft's Yii2 adapter (`craftcms/yii2-adapter`); Craft Commerce has no Craft 6 release yet, so product types return with it.
+Craft CMS 6.0 (alpha 20 or later) and PHP 8.5. A native Craft 6 plugin: no Yii2 adapter, no compatibility layer. Entries only (see below).
 
 ## Installation
 
@@ -35,17 +35,17 @@ composer require internetztube/craft-slug-equals-title:^4.0
 php artisan craft:plugin:install slug-equals-title
 ```
 
-Then tick the sections (entry types, category groups) under Settings → Slug Equals Title.
+Then tick the sections (or single entry types) under Settings → Slug Equals Title.
 
 Updating from Craft 5: be on 3.1.0 or later first (the update needs its table), then follow [`UPGRADE.md`](UPGRADE.md). The remembered choices and the settings carry over.
 
 ## How it decides
 
-On every save of an entry or category with a title, the plugin asks in this order:
+On every save of an entry with a title, the plugin asks in this order:
 
-1. **The editor.** Saved from an edit page or a slideout, the switch decides. Craft 6's editor posts only what changed, so a switch left as it was means the choice it showed: the remembered one, or the type's default. A switch that was toggled is remembered for the element.
-2. **The console.** Saved by `craft:resave:entries`, a migration or another Artisan command, the element's remembered choice decides; an element that never made one follows the plugin settings for its section (or entry type) or category group. A draft without a choice takes its canonical entry's.
-3. **Anything else** (queue jobs, index actions, imports, other plugins saving in a web request) leaves the slug alone.
+1. **The editor.** Saved from an edit page or a slideout, the switch decides. Craft 6's edit page posts only what changed, so a switch left as it was means the choice it showed: the remembered one, or the section's default. A switch that was toggled is remembered for the entry.
+2. **The console.** Saved by `craft:resave:entries`, a migration or another Artisan command, the element's remembered choice decides; an element that never made one follows the plugin settings for its section (or entry type). A draft without a choice takes its canonical entry's.
+3. **Anything else** in a web request that does not name the entry (index actions on many entries, other entries a plugin saves along) leaves the slug alone.
 
 When the answer is yes, the slug is set from the title with Craft's own `ElementHelper::generateSlug()` in the site's language, and Craft's validators normalize it and keep the URI unique. When the answer is no, the slug stays what it is.
 
@@ -58,16 +58,16 @@ Copy [`config/slug-equals-title.php`](config/slug-equals-title.php) to `config/c
 ```php
 return [
     'enabledSections' => ['news', 'pages:landingPage'],   // sections, or "section:entryType"
-    'enabledCategoryGroups' => ['topics'],               // category groups (with the Yii2 adapter)
-    'enabledProductTypes' => [],                         // Craft Commerce product types, once Commerce exists for Craft 6
 ];
 ```
 
-Types are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere.
+Sections are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere.
 
 ## Supported element types
 
-Entries (of a section; Matrix blocks are entries without one and are left alone), and categories through Craft's Yii2 adapter. Entry types that hide the slug field show no switch.
+Entries of a section. Matrix blocks are entries without one and are left alone; entry types that hide the slug field show no switch.
+
+Categories and Craft Commerce products exist in Craft 6 only through compatibility layers (Craft's Yii2 adapter), which this native plugin does not use. 3.x supports them on Craft 5.
 
 ## Screenshots
 
@@ -75,10 +75,10 @@ Every part of it, shown in the dev project: [docs/README.md](docs/README.md).
 
 ## Development
 
-`dev/dev.sh` creates a throwaway Craft 6 project (a Laravel app) with a German site, seeds the sections and the demo content (a travel journal, "Transit") and starts a server at http://localhost:8130/admin (admin / password). `YII2_ADAPTER=1` adds Craft's Yii2 adapter, for categories.
+`dev/dev.sh` creates a throwaway Craft 6 project (a Laravel app) with a German site, seeds the sections and the demo content (a travel journal, "Transit") and starts a server at http://localhost:8130/admin (admin / password).
 
 ```sh
-YII2_ADAPTER=1 dev/dev.sh      # setup + serve (PostgreSQL)
+dev/dev.sh                     # setup + serve (PostgreSQL)
 DB_DRIVER=mysql PROJECT_DIR=../craft-slug-equals-title-dev6-mysql PORT=8131 dev/dev.sh
 dev/dev.sh smoke                # seed and run dev/smoke.php (the console)
 dev/dev.sh e2e                  # the control panel over HTTP
@@ -87,7 +87,7 @@ dev/dev.sh screenshots          # retake docs/screenshots
 vendor/bin/phpstan              # static analysis (Larastan, level 9)
 ```
 
-GitHub Actions runs PHPStan and the three suites with coverage on PHP 8.5, on MySQL 8 and PostgreSQL 14, with and without the adapter.
+GitHub Actions runs PHPStan and the three suites with coverage on PHP 8.5, on MySQL 8 and PostgreSQL 14.
 
 ## Support
 

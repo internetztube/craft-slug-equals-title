@@ -107,8 +107,8 @@ window.regionOf = (elements, padding = 0) => {
 };
 `;
 
-/** The slug field and the switch's field after it. */
-const SLUG_AND_SWITCH = `[[slugUi().slugField, slugUi().field]]`;
+/** The slug field, with the switch inside it. */
+const SLUG_AND_SWITCH = `[[slugUi().slugField]]`;
 /** The settings page's lists. */
 const SETTINGS_FIELDS = `[[...document.querySelectorAll('craft-field[id^="form-settings-"]')]]`;
 
@@ -136,14 +136,14 @@ const SHOTS: Shot[] = [
     {
         name: 'settings',
         title: 'Defaults per section',
-        text: 'Pick the sections, single entry types of a section, and category groups whose elements follow their title. Or set them per environment in config/craft/slug-equals-title.php.',
+        text: 'Pick the sections, or single entry types of a section, whose entries follow their title. Or set them per environment in config/craft/slug-equals-title.php.',
         path: targets.settings,
-        points: ['Sections, entry types, category groups', 'Overridable in a config file', 'Every element can still decide for itself'],
+        points: ['Sections and single entry types', 'Overridable in a config file', 'Every entry can still decide for itself'],
         highlight: SETTINGS_FIELDS,
         inset: false,
         // the page's heading, the lists and the Save button, as wide as the warning line: a tall card on the cover
         cover: `(() => { const r = regionOf([document.querySelector('main h1, h1'), ...document.querySelectorAll('craft-field[id^="form-settings-"]'), document.querySelector('craft-button[type="submit"]')]); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + Math.min(r.width, 860), bottom: r.y + r.height }) }]; })()`,
-        caption: 'Defaults per section, entry type, group',
+        caption: 'Defaults per section and entry type',
     },
 ];
 
@@ -320,7 +320,7 @@ function frameHtml({ shot, base, inset, area, address }: Taken): string {
 /** The three close-ups of the cover: two stacked on the left, the tall one on the right. */
 const COVER_SHOTS = ['edit-page', 'own-slug', 'settings'];
 /** What the cover promises, under the title. */
-const COVER_CHIPS = ['Entries, and categories with the adapter', 'Per section, entry type or element', 'Three test suites, 100 % covered', 'Craft CMS 6'];
+const COVER_CHIPS = ['Native Craft 6 plugin', 'Per section, entry type or entry', 'Three test suites, 100 % covered', 'No build step'];
 
 /** The cover for the README and the Plugin Store: the plugin's name over three close-ups of the control panel. */
 function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): string {

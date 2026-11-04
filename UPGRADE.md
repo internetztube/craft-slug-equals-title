@@ -1,7 +1,7 @@
 # Upgrading to 4.0 (Craft 6)
 
-Version 4 is the same plugin, built for Craft 6. The switch next to the slug field, the defaults per section, entry
-type and category group, and the remembered choice per element work as in 3.1. This page lists what you may have to
+Version 4 is the same plugin, built natively for Craft 6 (a Laravel plugin, no Yii2 adapter). The switch next to the
+slug field, the defaults per section and entry type, and the remembered choice per entry work as in 3.1. This page lists what you may have to
 change in your own config and scripts.
 
 ## Requirements
@@ -22,9 +22,9 @@ The remembered choices (which entries follow their title and which keep their sl
 
 ## Config file
 
-Move `config/slug-equals-title.php` to `config/craft/slug-equals-title.php`. The keys are the same:
-`enabledSections`, `enabledCategoryGroups`, `enabledProductTypes`, by handle or UID, with `section:entryType` for one
-entry type of a section.
+Move `config/slug-equals-title.php` to `config/craft/slug-equals-title.php`. `enabledSections` is as before: sections by
+handle or UID, with `section:entryType` for one entry type of a section. `enabledCategoryGroups` and `enabledProductTypes`
+are ignored (see Element types); remove them when convenient.
 
 ## Command line
 
@@ -36,22 +36,22 @@ Craft 6 runs commands with `php artisan`. The plugin has no commands of its own;
 
 ## The editor
 
-Craft 6 has a new editor (edit pages) and keeps the previous one for slideouts. The switch is in both, next to the
-slug field. One difference in what it looks like: on edit pages the slug input stays visible while the switch is on
-(the previous editor showed “Overwritten by title” in its place); the slug is set from the title on save all the same.
+Craft 6 has a new editor (edit pages) and keeps the previous one for slideouts. The switch is in both, in the slug
+field next to its input, and while it is on “Overwritten by title” takes the input's place, as in 3.x.
 
-Craft 6's editor posts only the fields that changed. The plugin treats an editor save without the switch in the request
-as “the switch as it was shown”: the remembered choice of the element, or the default of its type. Toggling the switch
-posts it and is remembered. Saves from other web requests (queue jobs, index actions, imports, other plugins) still
-leave the slug alone, as since 1.x.
+Craft 6's edit page posts only the fields that changed, with the entry's id (directly, or through a provisional draft
+after an autosave). The plugin treats such a save without the switch in the request as “the switch as it was shown”:
+the remembered choice of the entry, or the default of its section. Toggling the switch posts it and is remembered.
+In 3.x a web save without the field left the slug alone; on Craft 6 that is no longer telling, so any web save that
+names the entry follows its remembered choice. Requests that do not name it (index actions on many entries, other
+entries a plugin saves along) still leave the slug alone.
 
 ## Element types
 
 - Entries: as before.
-- Categories: Craft 6 has them only through Craft's Yii2 adapter (`craftcms/yii2-adapter`). With it installed, category
-  groups appear in the settings and categories get the switch, as in 3.x.
-- Craft Commerce products: Commerce has no Craft 6 release yet. Product types return with it; the setting
-  `enabledProductTypes` stays in place.
+- Categories and Craft Commerce products: not on 4.x. Craft 6 has them only through compatibility layers (Craft's Yii2
+  adapter; Commerce has no Craft 6 release), and 4.x is a native Craft 6 plugin without one. Their settings in the
+  project config or a config file are ignored. 3.x keeps supporting them on Craft 5.
 
 ## PHP: namespaces
 

@@ -39,18 +39,10 @@ $slugs = app(Slugs::class);
 $settings = app(Settings::class);
 $primary = Sites::getPrimarySite();
 $de = Sites::getSiteByHandle('de') ?? throw new RuntimeException('Run the seed first');
-$adapter = class_exists(Slugs::CATEGORY);
-$categoryClass = Slugs::CATEGORY;
 
-$cleanup = function() use ($adapter, $categoryClass): void {
-    $queries = [Entry::find()->drafts(null)->provisionalDrafts(null)];
-    if ($adapter) {
-        $queries[] = $categoryClass::find();
-    }
-    foreach ($queries as $query) {
-        foreach ($query->title('Smoke:*')->status(null)->siteId('*')->unique()->all() as $old) {
-            Elements::deleteElement($old, true);
-        }
+$cleanup = function(): void {
+    foreach (Entry::find()->drafts(null)->provisionalDrafts(null)->title('Smoke:*')->status(null)->siteId('*')->unique()->all() as $old) {
+        Elements::deleteElement($old, true);
     }
 };
 $cleanup();
@@ -75,15 +67,11 @@ $newsSection = Sections::getSectionByHandle('news') ?? throw new RuntimeExceptio
 $pagesSection = Sections::getSectionByHandle('pages') ?? throw new RuntimeException('Run the seed first');
 $landing = EntryTypes::getEntryTypeByHandle('landingPage') ?? throw new RuntimeException('Run the seed first');
 check($settings->enabledSections === [$newsSection->uid], 'the seeded settings: News on by default, stored by UID');
-check($settings->enabledCategoryGroups === ['topics'] && config('craft.slug-equals-title.enabledCategoryGroups') === ['topics'], 'config/craft/slug-equals-title.php sets the category groups (by handle), over whatever the stored settings hold');
 $model = new Settings();
 $model->enabledSections = '';
-$model->enabledCategoryGroups = [';', 'topics', 3];
-$model->enabledProductTypes = null;
-check($model->enabledSections === [] && $model->enabledCategoryGroups === ['topics'] && $model->enabledProductTypes === [] && $model->validate(), 'an empty checkbox list, the ";" placeholder of old settings and null normalize to lists of handles');
-check(in_array(Entry::class, Slugs::elementTypes(), true) && in_array($categoryClass, Slugs::elementTypes(), true) === $adapter, 'entries' . ($adapter ? ' and categories (Yii2 adapter)' : '') . ' are the supported element types');
-check(array_keys(Slugs::settingGroups()) === array_merge(['enabledSections'], $adapter ? ['enabledCategoryGroups'] : []), 'the settings page lists sections' . ($adapter ? ' and category groups' : ''));
-check(in_array('news', array_map(fn(object $s): string => (string)$s->handle, Slugs::settingGroups()['enabledSections']['types']), true), 'with the sections of the site');
+check($model->enabledSections === [] && $model->validate(), 'an empty checkbox list ("" or null) normalizes to an empty list');
+$model->enabledSections = [';', 'news', 3];
+check($model->enabledSections === ['news'], 'the ";" placeholder of settings saved before 3.1 and non-strings are dropped');
 check(count($pagesSection->getEntryTypes()) === 2, 'the Pages section has two entry types (Page, Landing page)');
 check(Slugs::settingKeys(new Asset()) === [] && !$slugs->isEnabledByDefault(new Asset()) && !$slugs->supports(new Asset()), 'other element types (assets, users) have no setting and are never followed');
 
@@ -185,21 +173,6 @@ $blocksField = Fields::getFieldByHandle('blocks') ?? throw new RuntimeException(
 $block = Entry::find()->ownerId($page->id)->fieldId($blocksField->id)->status(null)->one();
 check($block instanceof Entry && !$slugs->supports($block) && !$slugs->isEnabled($block), 'nested entries (Matrix blocks) have no section: not supported, never followed');
 check($reload($page)->slug === 'smoke-blocks', 'the page keeps its slug');
-
-if ($adapter) {
-    echo "Categories (Yii2 adapter)\n";
-    $topics = \Craft::$app->getCategories()->getGroupByHandle('topics');
-    $regions = \Craft::$app->getCategories()->getGroupByHandle('regions');
-    $t = $save(new $categoryClass(['groupId' => $topics->id, 'title' => 'Smoke: Topic!']));
-    check($t->slug === 'smoke-topic' && Slugs::typeHandle($t) === 'topics', "a category of a group that is on follows its title ($t->slug)");
-    $t->title = 'Smoke: Another topic';
-    $save($t);
-    check($reload($t)->slug === 'smoke-another-topic', 'and when its title changes');
-    $r = $save(new $categoryClass(['groupId' => $regions->id, 'title' => 'Smoke: Region', 'slug' => 'smoke-somewhere']));
-    $r->title = 'Smoke: Renamed region';
-    $save($r);
-    check($reload($r)->slug === 'smoke-somewhere', 'a category of a group that is off keeps its slug');
-}
 
 echo "Install\n";
 $install = new Install();

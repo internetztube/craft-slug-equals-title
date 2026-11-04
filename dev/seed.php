@@ -7,9 +7,8 @@ declare(strict_types=1);
  *
  * Two sites (English, German), three sections ("News", a channel the plugin is on for by default; "Pages", a structure
  * it is off for, with two entry types; "Home", a single whose entry type hides the slug field), a Matrix field with
- * titled blocks on Pages (nested entries, which the plugin leaves alone), with Craft's Yii2 adapter the category groups
- * "Topics" (on by default through config/craft/slug-equals-title.php) and "Regions", the demo site "Transit" with a
- * little content for the screenshots.
+ * titled blocks on Pages (nested entries, which the plugin leaves alone), the demo site "Transit" with a little content
+ * for the screenshots.
  *
  * Run: dev/dev.sh seed   (or: php dev/seed.php <craft-project-dir>)
  */
@@ -181,39 +180,16 @@ $blockType = ensureEntryType('textBlock', 'Text block', [$body]);
 $blocks = ensureField(Matrix::class, 'blocks', 'Blocks', ['entryTypes' => [$blockType->uid]]);
 addFieldToLayout($blocks, $pageType);
 
-// categories: in Craft 6 only with Craft's Yii2 adapter (YII2_ADAPTER=1 in dev/dev.sh); a fresh Craft 6 install has no
-// tables for them, and the adapter registers them once the tables exist, so the groups follow in the second seed pass
-$adapter = class_exists(Slugs::CATEGORY);
-if ($adapter && !Schema::hasTable('categories')) {
-    app(Kernel::class)->call('craft:add-categories-support', ['--force' => true]);
-    echo "Added the adapter's category tables; the second seed pass makes the groups.\n";
-    $adapter = false;
-}
-if ($adapter) {
-    foreach (['topics' => 'Topics', 'regions' => 'Regions'] as $handle => $name) {
-        if (!\Craft::$app->getCategories()->getGroupByHandle($handle)) {
-            $group = new \craft\models\CategoryGroup(['name' => $name, 'handle' => $handle]);
-            $siteSettings = [];
-            foreach ($sites as $site) {
-                $siteSettings[$site->id] = new \craft\models\CategoryGroup_SiteSettings(['siteId' => $site->id, 'hasUrls' => true, 'uriFormat' => "$handle/{slug}", 'template' => '']);
-            }
-            $group->setSiteSettings($siteSettings);
-            \Craft::$app->getCategories()->saveGroup($group) or throw new RuntimeException("category group $handle: " . json_encode($group->getErrors()));
-        }
-    }
-}
 
-// --- plugin settings (by UID, as the settings page stores them): News in the control panel settings, Topics through
-// the config file (by handle)
+// --- plugin settings (by UID, as the settings page stores them): News on by default
 $plugin = Plugins::getPlugin('slug-equals-title') ?? throw new RuntimeException('Plugin not installed');
 assert($plugin instanceof SlugEqualsTitle);
-$settings = ['enabledSections' => [$news->uid], 'enabledCategoryGroups' => [], 'enabledProductTypes' => []];
+$settings = ['enabledSections' => [$news->uid]];
 if ($plugin->getSettings()->enabledSections !== $settings['enabledSections']) {
     Plugins::savePluginSettings($plugin, $settings) or fail($plugin->getSettings());
 }
 ProjectConfig::saveModifiedConfigData(); // a bootstrapped script never terminates the app, which would write it
-@mkdir($projectDir . '/config/craft');
-file_put_contents($projectDir . '/config/craft/slug-equals-title.php', "<?php\n\n// written by dev/seed.php: the Topics group is on by default, read-only on the settings page\nreturn ['enabledCategoryGroups' => ['topics']];\n");
+@unlink($projectDir . '/config/craft/slug-equals-title.php'); // the suites write it for their config-file checks
 
 // --- demo content (what the screenshots show)
 ensureEntry('news', 'Vienna by night: 24 hours between Naschmarkt and the Danube', [], [
@@ -231,13 +207,4 @@ $about = ensureEntry('pages', 'About us & how we travel', ['slug' => 'about'], [
 app(Slugs::class)->setEnabled($about, false); // a page that keeps its own slug
 ensureEntry('pages', 'Contact', [], ['intro' => 'Write to hello@transit.test.']);
 ensureEntry('home', 'Home');
-if ($adapter) {
-    $categoryClass = Slugs::CATEGORY;
-    foreach (['topics' => 'City guides', 'regions' => 'Asia'] as $handle => $title) {
-        if (!$categoryClass::find()->group($handle)->title($title)->status(null)->one()) {
-            $category = new $categoryClass(['groupId' => \Craft::$app->getCategories()->getGroupByHandle($handle)->id, 'title' => $title]);
-            Elements::saveElement($category) or fail($category);
-        }
-    }
-}
 echo "Seeded.\n";

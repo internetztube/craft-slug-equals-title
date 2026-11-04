@@ -164,7 +164,8 @@ window.$$ = (selector, root = document) => [...root.querySelectorAll(selector)].
 window.slugUi = () => {
     const slugField = document.querySelector('craft-field#form-slug');
     const field = document.querySelector('craft-field#form-slugEqualsTitle_shouldRewrite');
-    const button = field?.querySelector('[role="switch"]') ?? null;
+    // the plugin's script moves the switch out of its field into the slug field's input
+    const button = document.querySelector('craft-switch[name="slugEqualsTitle_shouldRewrite"] [role="switch"]');
     return {
         slugField,
         field,
@@ -172,8 +173,11 @@ window.slugUi = () => {
         on: button?.getAttribute('aria-checked') === 'true',
         slugInput: slugField?.querySelector('input') ?? null,
         titleInput: document.querySelector('craft-field#form-title input') ?? null,
-        /** the switch's field follows the slug field */
-        afterSlug: !!slugField && !!field && slugField.nextElementSibling === field,
+        /** the switch sits inside the slug field, next to its input */
+        inSlugField: !!slugField && !!button && slugField.contains(button),
+        /** the input is out of the way while the switch is on; the note takes its place */
+        inputHidden: !!(slugField?.querySelector('craft-input')?.hidden),
+        note: slugField?.querySelector('.slug-equals-title-row > span:not([hidden])')?.textContent ?? null,
     };
 };
 /** Types into an input like a person (the form listens for \`input\`). */

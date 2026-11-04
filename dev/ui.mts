@@ -57,9 +57,9 @@ const visit = async (path: string) => {
 };
 const run = (code: string) => evaluate(browser, code);
 /** The switch and the slug field, as the page shows them. */
-const ui = (): Promise<{ present: boolean, afterSlug: boolean, on: boolean, slug: string, title: string, hasSlugField: boolean }> => run(`
+const ui = (): Promise<{ present: boolean, inSlugField: boolean, inputHidden: boolean, note: string | null, on: boolean, slug: string, title: string, hasSlugField: boolean }> => run(`
     const u = slugUi();
-    return { present: !!u.button, afterSlug: u.afterSlug, on: u.on, slug: u.slugInput?.value ?? '', title: u.titleInput?.value ?? '', hasSlugField: !!u.slugField };
+    return { present: !!u.button, inSlugField: u.inSlugField, inputHidden: u.inputHidden, note: u.note, on: u.on, slug: u.slugInput?.value ?? '', title: u.titleInput?.value ?? '', hasSlugField: !!u.slugField };
 `);
 /** Saves (the editor stays on the page) and opens the page again, so what is read is what was stored. */
 const saveAndReload = async (path: string) => {
@@ -96,7 +96,8 @@ try {
     await scenario('The switch after the slug field', async () => {
         await visit(targets.fixtures.news.path);
         const u = await ui();
-        check(u.present && u.afterSlug, 'a News entry has the "Slug equals title" switch right after the slug field');
+        check(u.present && u.inSlugField, 'a News entry has the "Slug equals title" switch inside the slug field, next to its input');
+        check(u.inputHidden && u.note === 'Overwritten by title', 'on: "Overwritten by title" stands in for the input');
         check(u.on && u.slug === 'ui-news-entry', `on, with the slug from the title (${u.slug})`);
         await run(`type(slugUi().titleInput, 'UI: Typed a new title!');`);
         await saveAndReload(targets.fixtures.news.path);
@@ -122,7 +123,7 @@ try {
     await scenario('A section that is off', async () => {
         await visit(targets.fixtures.page.path);
         const u = await ui();
-        check(u.present && u.afterSlug && !u.on && u.slug === 'ui-page', 'a Pages entry has the switch off and its own slug');
+        check(u.present && u.inSlugField && !u.inputHidden && !u.on && u.slug === 'ui-page', 'a Pages entry has the switch off and its own slug');
         await run(`type(slugUi().titleInput, 'UI: Renamed page');`);
         await saveAndReload(targets.fixtures.page.path);
         check((await ui()).slug === 'ui-page', 'saved: the title leaves the slug alone');

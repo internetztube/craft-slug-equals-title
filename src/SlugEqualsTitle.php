@@ -29,9 +29,8 @@ use Override;
 use function CraftCms\Cms\t;
 
 /**
- * Keeps the slug of entries (and, with Craft's Yii2 adapter, categories) equal to their title. On by default per
- * section, entry type or category group (the plugin settings), and decided per element with a switch in the slug
- * field. The choice made on an edit form is remembered (Slugs); console saves (resave, migrations) follow it, other
+ * Keeps the slug of entries equal to their title. On by default per section or entry type (the plugin settings), and
+ * decided per entry with a switch in the slug field. The choice made on an edit form is remembered (Slugs); console saves (resave, migrations) follow it, other
  * saves without a form (queue jobs, index actions, other plugins) leave the slug alone, as since 1.x.
  *
  * @method Settings getSettings()
@@ -55,8 +54,8 @@ class SlugEqualsTitle extends Plugin
 for (const holder of document.querySelectorAll('[data-slug-equals-title]:not(.slug-equals-title)')) {
     holder.classList.add('slug-equals-title');
     const slugField = holder.parentElement.querySelector('[data-attribute="slug"]');
-    const lightswitch = holder.querySelector('craft-switch, .lightswitch'); // Craft 6's web component, or the classic lightswitch
-    const button = lightswitch.querySelector('[role="switch"]') ?? lightswitch;
+    const lightswitch = holder.querySelector('craft-switch');
+    const button = lightswitch.querySelector('[role="switch"]');
     if (!slugField) {
         holder.remove(); // this type hides its slug field
         continue;
@@ -87,6 +86,66 @@ for (const holder of document.querySelectorAll('[data-slug-equals-title]:not(.sl
 }
 JS;
 
+    /**
+     * Craft 6's editor (edit pages): the switch's field comes right after the slug field in the sidebar form; this hides
+     * that field and lays the slug field's input out as a row: the input (or, while the switch is on, "Overwritten by
+     * title": the server sets the slug on save) and the switch next to it. Runs once per page and watches the
+     * document: the editor re-renders, and Inertia swaps pages without a reload.
+     */
+    private const JS_EDITOR = <<<'JS'
+(() => {
+    if (window.slugEqualsTitleEditor) {
+        return;
+    }
+    window.slugEqualsTitleEditor = true;
+    const apply = () => {
+        for (const field of document.querySelectorAll('craft-field[id$="slugEqualsTitle_shouldRewrite"]')) {
+            const slugField = field.previousElementSibling;
+            const input = slugField?.querySelector('craft-input'); // the slug field's input component
+            const fresh = field.querySelector('craft-switch'); // still in its own field: new, or re-rendered by the editor
+            if (!input || !/slug$/.test(slugField.id) || (!fresh && input.parentElement?.classList.contains('slug-equals-title-row'))) {
+                continue;
+            }
+            field.hidden = true; // its label would say the same twice; the switch keeps it as its accessible name
+            field.style.display = 'none';
+            let row = slugField.querySelector(':scope > .slug-equals-title-row');
+            if (!row) {
+                row = document.createElement('div');
+                row.className = 'slug-equals-title-row';
+                row.slot = 'input';
+                row.style.cssText = 'display: flex; align-items: center; gap: var(--s, 8px); flex: 1 1 auto'; // the field's slot is a flex row itself
+                const note = document.createElement('span');
+                note.className = 'light';
+                note.style.flex = '1';
+                note.textContent = __NOTE__;
+                input.replaceWith(row);
+                row.append(input, note);
+                input.style.flex = '1 1 auto';
+                input.style.minWidth = '0';
+            }
+            if (fresh) {
+                row.querySelector('craft-switch')?.remove(); // the editor made a new one: the old is no longer bound
+                fresh.style.flex = 'none';
+                row.append(fresh);
+                const button = fresh.querySelector('[role="switch"]');
+                const sync = () => {
+                    const on = button?.getAttribute('aria-checked') === 'true';
+                    input.hidden = on; // not typed while on: the server sets it from the title
+                    row.querySelector('span').hidden = !on;
+                };
+                sync();
+                // the web component sets aria-checked when it upgrades and on every toggle: click, keyboard, the editor
+                if (button) {
+                    new MutationObserver(sync).observe(button, { attributes: true, attributeFilter: ['aria-checked'] });
+                }
+            }
+        }
+    };
+    apply();
+    new MutationObserver(apply).observe(document.body, { childList: true, subtree: true });
+})();
+JS;
+
     #[Override]
     protected static function createSettings(): ?PluginSettings
     {
@@ -102,6 +161,10 @@ JS;
     public function boot(): void
     {
         $this->app->singleton(Settings::class, fn(): Settings => $this->getSettings());
+        if (!app()->runningInConsole() && request()->isCpRequest()) {
+            // every control panel page: Inertia swaps edit pages in without a reload, so the script has to be there first
+            HtmlStack::jsWithVars(fn(string $note): string => str_replace('__NOTE__', $note, self::JS_EDITOR), [t('Overwritten by title', category: 'slug-equals-title')], Position::Ready, 'slug-equals-title-editor');
+        }
         Event::listen(fn(ElementSaving $event) => $this->applyTitle($event->element));
         Event::listen(fn(ElementSaved $event) => $this->remember($event->element));
         // the legacy editor (slideouts): the switch as HTML next to Craft's meta fields
@@ -116,8 +179,8 @@ JS;
 
     /**
      * Sets the slug from the title when the form's switch says so. Craft 6's editor posts only what changed, so a
-     * switch left as it was is not in the request: an editor save then follows the remembered choice (what the switch
-     * showed), as does the console (resave, migrations).
+     * switch left as it was is not in the request: a save through Craft's element actions then follows the remembered
+     * choice (what the switch showed), as does the console (resave, migrations).
      */
     private function applyTitle(ElementInterface $element): void
     {
@@ -156,17 +219,29 @@ JS;
         return (bool)$value;
     }
 
-    /** A save from Craft's editor (edit page or slideout) of this element: the request names the editor's container. */
+    /**
+     * A web save whose request names this element: Craft's edit page posts only the changed values, with the entry's
+     * id (`elementId` to the element actions, `entryId` to `entries/save-entry`). Saves of other elements in the same
+     * request (a plugin saving along) and requests without the id (index actions on many elements) are not the
+     * editor's.
+     */
     private function isEditorSave(ElementInterface $element): bool
     {
-        return !app()->runningInConsole() && request()->filled('editorContainerId') && $this->isFormOf($element);
+        return !app()->runningInConsole() && $this->requestElementId() === $element->getCanonicalId();
     }
 
     /** Whether the request's form is about this element (another element saved in the same request by a plugin is not). */
     private function isFormOf(ElementInterface $element): bool
     {
-        $formElementId = request()->input('elementId');
-        return !is_numeric($formElementId) || (int)$formElementId === $element->getCanonicalId();
+        $id = $this->requestElementId();
+        return $id === null || $id === $element->getCanonicalId();
+    }
+
+    /** The id the request's form is about, if it names one. */
+    private function requestElementId(): ?int
+    {
+        $id = request()->input('elementId') ?? request()->input('entryId');
+        return is_numeric($id) ? (int)$id : null;
     }
 
     /** The "Slug equals title" switch for the legacy editor's meta pane (self::JS moves it into the slug field). */
