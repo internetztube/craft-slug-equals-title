@@ -21,6 +21,14 @@ class Settings extends PluginSettings
     }
 
     /**
+     * @var array<string, string> Words dropped from the title before it becomes the slug, per site language ("de-CH"
+     * falls back to "de"): one line per language, "a, and, the", as the settings page edits it. Empty: every word stays.
+     */
+    public array $stopWords = [] {
+        set(mixed $value) => self::linesPerLanguage($value);
+    }
+
+    /**
      * A list of handles or UIDs: an empty checkbox list posts "" or null, settings saved before 3.1 carried a ";"
      * placeholder.
      * @return list<string>
@@ -31,6 +39,24 @@ class Settings extends PluginSettings
         return array_values(array_filter($list, fn(mixed $handle): bool => is_string($handle) && $handle !== '' && $handle !== ';'));
     }
 
+    /**
+     * The settings page posts a comma-separated line per language, the config file lists: both become one line of
+     * lower-cased unique words, "a, and, the"; languages without words are dropped.
+     * @return array<string, string>
+     */
+    private static function linesPerLanguage(mixed $value): array
+    {
+        $result = [];
+        foreach (is_array($value) ? $value : [] as $language => $words) {
+            $list = is_array($words) ? $words : (preg_split('/[\s,;]+/u', is_string($words) ? $words : '') ?: []);
+            $list = array_filter(array_map(fn(mixed $word): string => mb_strtolower(trim(is_string($word) ? $word : '')), $list));
+            if ($list !== [] && is_string($language) && $language !== '') {
+                $result[$language] = implode(', ', array_unique($list));
+            }
+        }
+        return $result;
+    }
+
     /** @return array<string, list<string>> */
     #[Override]
     public function getRules(): array
@@ -38,6 +64,8 @@ class Settings extends PluginSettings
         return [
             'enabledSections' => ['array'],
             'enabledSections.*' => ['string'],
+            'stopWords' => ['array'],
+            'stopWords.*' => ['string'],
         ];
     }
 }

@@ -290,7 +290,8 @@ check(($form['values']['settings']['enabledSections'] ?? null) === [$newsSection
 // config/craft/slug-equals-title.php wins over the stored settings: named by handle, read-only on the page
 $configFile = $projectDir . '/config/craft/slug-equals-title.php';
 @mkdir(dirname($configFile));
-file_put_contents($configFile, "<?php\n\nreturn ['enabledSections' => ['news', 'pages:landingPage']];\n");
+register_shutdown_function(static fn() => @unlink($configFile)); // a failed check exits: `finally` would not run
+file_put_contents($configFile, "<?php\n\nreturn ['enabledSections' => ['news', 'pages:landingPage'], 'stopWords' => ['en' => ['the']]];\n");
 try {
     [$status, , $json] = $http->page('/admin/settings/plugins/slug-equals-title');
     $byPath = [];
@@ -301,6 +302,9 @@ try {
     $optionValues = array_column($sections['props']['options'] ?? [], 'value', 'label');
     check($status === 200 && $sections !== null && $sections['mode'] === 'disabled' && str_contains((string)($sections['node']['warning'] ?? ''), 'config/craft/slug-equals-title.php'), 'with the config file in place, Sections is read-only with a note (' . json_encode($sections['node'] ?? null) . ')');
     check(($optionValues['News'] ?? null) === 'news' && ($optionValues['↳ Landing page'] ?? null) === 'pages:landingPage' && ($optionValues['Pages'] ?? null) === $pagesSection->uid && ($json['props']['form']['values']['settings']['enabledSections'] ?? null) === ['news', 'pages:landingPage'], 'News and Landing page (named by handle in the file) are ticked, Pages (by UID) is not');
+    $primary = Sites::getPrimarySite()->language;
+    $stopLine = $byPath["settings.stopWords.$primary"] ?? null;
+    check($stopLine !== null && $stopLine['mode'] === 'disabled' && ($json['props']['form']['values']['settings']['stopWords'][$primary] ?? null) === 'the' && str_contains(json_encode($json['props']['form']) ?: '', 'the stopWords setting'), "the stop words from the file (\"en\", shown for $primary) are read-only with a note");
     $landingEntry = $make('pages', 'E2E: Landing', ['typeId' => $landing->id, 'slug' => 'e2e-landing']);
     [$status, , $json] = $editorSave($landingEntry, ['title' => 'E2E: Landing renamed']);
     check($status === 200 && empty($json['errors']) && $reload($landingEntry)->slug === 'e2e-landing-renamed', 'a Landing page entry follows its title: the file turned its entry type on');
@@ -308,12 +312,24 @@ try {
 } finally {
     unlink($configFile);
 }
-[$status, $body, $json] = $http->request('POST', '/admin/settings/plugins/slug-equals-title', ['settings' => ['enabledSections' => [$newsSection->uid, "$pagesSection->uid:$landing->uid"]]]);
+$lang = Sites::getPrimarySite()->language;
+[$status, , $json] = $http->page('/admin/settings/plugins/slug-equals-title');
+$byPath = [];
+foreach (nodes($json['props']['form'] ?? null) as $node) {
+    $byPath[$node['path']] = $node;
+}
+check(($byPath["settings.stopWords.$lang"]['component'] ?? null) === 'craft:text' && ($byPath['settings.stopWords.de']['component'] ?? null) === 'craft:text', "Stop words: a line per site language ($lang, de), empty");
+[$status, $body, $json] = $http->request('POST', '/admin/settings/plugins/slug-equals-title', ['settings' => ['enabledSections' => [$newsSection->uid, "$pagesSection->uid:$landing->uid"], 'stopWords' => [$lang => 'A, and, the', 'de' => '']]]);
 check($status === 200, "saving the settings succeeds (HTTP $status: " . substr($body, 0, 200) . ')');
 $stored = ProjectConfig::get('plugins.slug-equals-title.settings', true);
 check(($stored['enabledSections'] ?? null) === [$newsSection->uid, "$pagesSection->uid:$landing->uid"], 'the ticked section and entry type are stored by UID');
-[$status] = $http->request('POST', '/admin/settings/plugins/slug-equals-title', ['settings' => ['enabledSections' => [$newsSection->uid]]]);
-check($status === 200, 'the seeded settings are back');
+[$status, , $json] = $http->page('/admin/settings/plugins/slug-equals-title');
+check(($json['props']['form']['values']['settings']['stopWords'][$lang] ?? null) === 'a, and, the' && empty($json['props']['form']['values']['settings']['stopWords']['de']), 'the stop words are stored per language as one line of lower-cased words, shown again as it is; a language left empty is not stored');
+[$status, , $json] = $saveEntry($news, ['title' => 'E2E: The news and the hills', SlugEqualsTitle::PARAM => '1']);
+check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-news-hills', 'and they are in effect: an entry saved with the switch on gets its slug without them (' . $reload($news)->slug . ')');
+[$status] = $http->request('POST', '/admin/settings/plugins/slug-equals-title', ['settings' => ['enabledSections' => [$newsSection->uid], 'stopWords' => '']]);
+[, , $json] = $http->page('/admin/settings/plugins/slug-equals-title');
+check($status === 200 && empty($json['props']['form']['values']['settings']['stopWords'][$lang]), 'the seeded settings are back, no stop words');
 
 // --- cleanup
 foreach ([$news, $page] as $entry) {

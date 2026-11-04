@@ -191,7 +191,8 @@ JS;
         $follow = $this->requestChoice($element) ?? ((app()->runningInConsole() || $this->isEditorSave($element)) && $slugs->isEnabled($element));
         if ($follow) {
             // normalized and made unique by Craft's own slug and URI validators, which run after this event
-            $element->slug = ElementHelper::generateSlug((string)$element->title, null, $element->getSite()->language);
+            $language = $element->getSite()->language;
+            $element->slug = ElementHelper::generateSlug($slugs->titleForSlug((string)$element->title, $language), null, $language);
         }
     }
 

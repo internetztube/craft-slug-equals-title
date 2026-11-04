@@ -142,7 +142,8 @@ const SHOTS: Shot[] = [
         highlight: SETTINGS_FIELDS,
         inset: false,
         // the page's heading, the lists and the Save button, as wide as the warning line: a tall card on the cover
-        cover: `(() => { const r = regionOf([document.querySelector('main h1, h1'), ...document.querySelectorAll('craft-field[id^="form-settings-"]'), document.querySelector('craft-button[type="submit"]')]); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + Math.min(r.width, 860), bottom: r.y + r.height }) }]; })()`,
+        // the page's heading and the type list, as wide as the warning line; the stop words block is a different story
+        cover: `(() => { const r = regionOf([document.querySelector('main h1, h1'), ...[...document.querySelectorAll('craft-field[id^="form-settings-"]')].filter((f) => !f.id.includes('stopWords'))]); return [{ getBoundingClientRect: () => ({ left: r.x, top: r.y, right: r.x + Math.min(r.width, 860), bottom: r.y + r.height }) }]; })()`,
         caption: 'Defaults per section and entry type',
     },
 ];

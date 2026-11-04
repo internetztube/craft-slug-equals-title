@@ -6,6 +6,9 @@ namespace Internetztube\SlugEqualsTitle;
 
 use CraftCms\Cms\Element\Contracts\ElementInterface;
 use CraftCms\Cms\Entry\Elements\Entry;
+use CraftCms\Cms\Site\Data\Site;
+use CraftCms\Cms\Support\Facades\I18N;
+use CraftCms\Cms\Support\Facades\Sites;
 use CraftCms\Cms\Support\Str;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +42,40 @@ final class Slugs
         }
         $entryType = $element->getType();
         return [(string)$section->uid, (string)$section->handle, "$section->uid:$entryType->uid", "$section->handle:$entryType->handle"];
+    }
+
+    /**
+     * The title without the stop words of the site's language ("de-CH" falls back to "de"): whole words, any case.
+     * The title as it is when no words are set, or when nothing but stop words would be left.
+     */
+    public function titleForSlug(string $title, ?string $language): string
+    {
+        $language ??= '';
+        $lines = app(Settings::class)->stopWords;
+        $line = $lines[$language] ?? $lines[strtolower($language)] ?? $lines[explode('-', $language)[0]] ?? '';
+        if ($line === '') {
+            return $title;
+        }
+        $words = explode(', ', $line);
+        $pattern = '/(?<![\p{L}\p{N}])(?:' . implode('|', array_map(fn(string $word): string => preg_quote($word, '/'), $words)) . ')(?![\p{L}\p{N}])/iu';
+        $stripped = trim((string)preg_replace('/\s+/u', ' ', (string)preg_replace($pattern, ' ', $title)));
+        return preg_match('/[\p{L}\p{N}]/u', $stripped) === 1 ? $stripped : $title;
+    }
+
+    /**
+     * The sites' languages, for the settings page (a line of stop words per language): id and display name, each once.
+     * @return list<array{id: string, name: string}>
+     */
+    public static function siteLanguages(): array
+    {
+        $languages = [];
+        /** @var list<Site> $sites */
+        $sites = Sites::getAllSites()->all();
+        foreach ($sites as $site) {
+            $language = (string)$site->language;
+            $languages[$language] ??= ['id' => $language, 'name' => I18N::getLocaleById($language)->getDisplayName(app()->getLocale())];
+        }
+        return array_values($languages);
     }
 
     /** The default for the entry's section or entry type, from the settings (see settingKeys()). */

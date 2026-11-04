@@ -184,8 +184,8 @@ addFieldToLayout($blocks, $pageType);
 // --- plugin settings (by UID, as the settings page stores them): News on by default
 $plugin = Plugins::getPlugin('slug-equals-title') ?? throw new RuntimeException('Plugin not installed');
 assert($plugin instanceof SlugEqualsTitle);
-$settings = ['enabledSections' => [$news->uid]];
-if ($plugin->getSettings()->enabledSections !== $settings['enabledSections']) {
+$settings = ['enabledSections' => [$news->uid], 'stopWords' => []];
+if ($plugin->getSettings()->enabledSections !== $settings['enabledSections'] || $plugin->getSettings()->stopWords !== []) {
     Plugins::savePluginSettings($plugin, $settings) or fail($plugin->getSettings());
 }
 ProjectConfig::saveModifiedConfigData(); // a bootstrapped script never terminates the app, which would write it

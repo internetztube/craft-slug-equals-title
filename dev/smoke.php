@@ -92,6 +92,23 @@ check($reload($p)->slug === 'smoke-page', 'and keeps it when its title changes')
 check($slugs->isEnabled($a) && !$slugs->isEnabled($p) && $slugs->isEnabledByDefault($a) && !$slugs->isEnabledByDefault($p), 'isEnabled() follows the defaults of the types while nothing is remembered');
 check($rows($a) === [] && $rows($p) === [], 'console saves remember nothing (no edit form)');
 
+echo "Stop words\n";
+$settings->stopWords = ['en' => ['a', 'and', 'the'], 'de' => ['ein', 'in']];
+check($slugs->titleForSlug('A weekend in Hong Kong and more', 'en') === 'weekend in Hong Kong more', 'the stop words of the site language fall out of the title: whole words, any case');
+check($slugs->titleForSlug('The The', 'en') === 'The The', 'a title of nothing but stop words keeps every word');
+check($slugs->titleForSlug('Ein Tag in Wien', 'de-CH') === 'Tag Wien', '"de-CH" falls back to the words of "de"');
+check($slugs->titleForSlug('Andante', 'en') === 'Andante' && $slugs->titleForSlug('Brand new', 'fr') === 'Brand new', 'inside a word nothing is dropped, and a language without words keeps the title');
+$stopped = $make('news', 'Smoke: The road and the hills');
+check($reload($stopped)->slug === 'smoke-road-hills', 'a News entry gets its slug without them');
+$settings->stopWords = [];
+$stopped->title = 'Smoke: The road and the hills again';
+$save($stopped);
+check($reload($stopped)->slug === 'smoke-the-road-and-the-hills-again', 'without words, every word stays (the default)');
+$model = new Settings();
+$model->stopWords = ['en' => 'A, and  the,', 'de' => '', 'fr' => ['Le', 'le'], '' => 'x'];
+check($model->stopWords === ['en' => 'a, and, the', 'fr' => 'le'] && $model->validate(), 'the settings page posts a comma-separated line per language, the config file lists: one line of trimmed, lower-cased, unique words each; languages without words are dropped');
+check(count(Slugs::siteLanguages()) === 2 && Slugs::siteLanguages()[1]['id'] === 'de', 'the settings page gets a line per site language (en, de)');
+
 echo "Entry types and handles\n";
 $landingEntry = $make('pages', 'Smoke: Landing', ['typeId' => $landing->id, 'slug' => 'smoke-landing']);
 check(Slugs::settingKeys($landingEntry) === [$pagesSection->uid, 'pages', "$pagesSection->uid:$landing->uid", 'pages:landingPage'], 'an entry matches its section and its entry type, by UID and by handle (' . implode(', ', Slugs::settingKeys($landingEntry)) . ')');

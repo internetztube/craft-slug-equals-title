@@ -56,8 +56,8 @@ if ($mode === 'fixtures') {
     // the seeded settings (dev/seed.php): a run that failed on the settings page may have left others
     $plugin = Plugins::getPlugin('slug-equals-title') ?? throw new RuntimeException('Plugin not installed');
     assert($plugin instanceof SlugEqualsTitle);
-    if ($plugin->getSettings()->enabledSections !== [$news->uid]) {
-        Plugins::savePluginSettings($plugin, ['enabledSections' => [$news->uid]]);
+    if ($plugin->getSettings()->enabledSections !== [$news->uid] || $plugin->getSettings()->stopWords !== []) {
+        Plugins::savePluginSettings($plugin, ['enabledSections' => [$news->uid], 'stopWords' => []]);
         ProjectConfig::saveModifiedConfigData();
     }
     $make = function(string $section, string $title, array $attributes = []): Entry {
