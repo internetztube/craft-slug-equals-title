@@ -42,6 +42,26 @@
                                         }) }}
                                     </div>
                                 {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </fieldset>
+            {% endset %}
+            {{ forms.field(common|merge({
+                instructions: 'Tick a section for all its entries, or only some of its entry types.'|t('slug-equals-title'),
+            }), sections) }}
+        {% else %}
+            {# the config file may name types by handle: shown as ticked too #}
+            {{ forms.checkboxSelectField(common|merge({
+                name: name,
+                options: group.types|map(type => { label: type.name, value: type.uid, checked: type.uid in values or type.handle in values }),
+                values: values,
+                showAllOption: false,
+                disabled: disabled,
+            })) }}
+        {% endif %}
+    {% endif %}
+{% endfor %}
 
 {# the stop words: a line per site language #}
 {% set disabled = 'stopWords' in overrides %}
@@ -63,23 +83,3 @@
     errors: settings.getErrors('stopWords'),
     warning: disabled ? 'This is being overridden by the {name} setting in config/slug-equals-title.php.'|t('slug-equals-title', { name: 'stopWords' }),
 }, stopWords) }}
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </fieldset>
-            {% endset %}
-            {{ forms.field(common|merge({
-                instructions: 'Tick a section for all its entries, or only some of its entry types.'|t('slug-equals-title'),
-            }), sections) }}
-        {% else %}
-            {# the config file may name types by handle: shown as ticked too #}
-            {{ forms.checkboxSelectField(common|merge({
-                name: name,
-                options: group.types|map(type => { label: type.name, value: type.uid, checked: type.uid in values or type.handle in values }),
-                values: values,
-                showAllOption: false,
-                disabled: disabled,
-            })) }}
-        {% endif %}
-    {% endif %}
-{% endfor %}
