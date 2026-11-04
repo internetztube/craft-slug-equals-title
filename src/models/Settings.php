@@ -22,8 +22,9 @@ final class Settings extends Model
     public array $enabledProductTypes = [];
 
     /**
-     * @var array<string, string> Words dropped from the title before it becomes the slug, per site language ("de-CH"
-     * falls back to "de"): one line per language, "a, and, the", as the settings page edits it. Empty: every word stays.
+     * @var array<string, string> Words dropped from the title before it becomes the slug, per language: one line each,
+     * "a, and, the", as the settings page edits it. Keyed by language ("de"), not locale: Craft keeps de-AT and de-DE
+     * apart, the words do not (a locale key counts as its language). Empty: every word stays.
      */
     public array $stopWords = [];
 
@@ -50,7 +51,8 @@ final class Settings extends Model
 
     /**
      * The settings page posts a comma-separated line per language, the config file lists: both become one line of
-     * lower-cased unique words, "a, and, the"; languages without words are dropped.
+     * lower-cased unique words, "a, and, the"; languages without words are dropped, a locale ("de-CH") counts as its
+     * language ("de").
      * @return array<string, string>
      */
     private static function linesPerLanguage(mixed $value): array
@@ -59,8 +61,9 @@ final class Settings extends Model
         foreach (is_array($value) ? $value : [] as $language => $words) {
             $list = is_array($words) ? $words : (preg_split('/[\s,;]+/u', is_string($words) ? $words : '') ?: []);
             $list = array_filter(array_map(fn(mixed $word): string => mb_strtolower(trim(is_string($word) ? $word : '')), $list));
-            if ($list !== [] && is_string($language) && $language !== '') {
-                $result[$language] = implode(', ', array_unique($list));
+            $language = is_string($language) ? strtolower(explode('-', $language)[0]) : '';
+            if ($list !== [] && $language !== '') {
+                $result[$language] = implode(', ', array_unique(array_filter([...explode(', ', $result[$language] ?? ''), ...$list])));
             }
         }
         return $result;

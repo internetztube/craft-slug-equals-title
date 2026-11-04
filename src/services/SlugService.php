@@ -100,13 +100,13 @@ final class SlugService extends Component
 
     /** Entries of a section, categories and products; not nested entries (Matrix) and not other element types. */
     /**
-     * The title without the stop words of the site's language ("de-CH" falls back to "de"): whole words, any case.
+     * The title without the stop words of the site's language (de-AT and de-DE both use "de"): whole words, any case.
      * The title as it is when no words are set, or when nothing but stop words would be left.
      */
     public function titleForSlug(string $title, string $language): string
     {
         $lines = (SlugEqualsTitle::getInstance() ?? throw new InvalidConfigException('Plugin not loaded'))->getSettings()->stopWords;
-        $line = $lines[$language] ?? $lines[strtolower($language)] ?? $lines[explode('-', $language)[0]] ?? '';
+        $line = $lines[strtolower(explode('-', $language)[0])] ?? '';
         if ($line === '') {
             return $title;
         }
@@ -117,14 +117,16 @@ final class SlugService extends Component
     }
 
     /**
-     * The sites' languages, for the settings page (a line of stop words per language): id and display name, each once.
+     * The languages of the sites, for the settings page (a line of stop words each): "de" for de-AT and de-DE alike,
+     * with the language's display name. Craft has no such grouping of its own.
      * @return list<array{id: string, name: string}>
      */
     public static function siteLanguages(): array
     {
         $languages = [];
         foreach (Craft::$app->getSites()->getAllSites() as $site) {
-            $languages[$site->language] ??= ['id' => $site->language, 'name' => Craft::$app->getI18n()->getLocaleById($site->language)->getDisplayName(Craft::$app->language)];
+            $language = strtolower(explode('-', $site->language)[0]);
+            $languages[$language] ??= ['id' => $language, 'name' => Craft::$app->getI18n()->getLocaleById($language)->getDisplayName(Craft::$app->language)];
         }
         return array_values($languages);
     }

@@ -9,5 +9,5 @@ return [
     'This is being overridden by the {name} setting in config/slug-equals-title.php.' => 'Questo è sovrascritto dall’impostazione {name} in config/slug-equals-title.php.',
     'Tick a section for all its entries, or only some of its entry types.' => 'Spunta una sezione per tutte le sue voci, o solo per alcuni dei suoi tipi di voce.',
     'Stop words' => 'Stop word',
-    'Words dropped from the title before it becomes the slug, per site language: whole words, comma-separated, any case. Leave empty to keep every word.' => 'Parole tolte dal titolo prima che diventi lo slug, per lingua del sito: parole intere, separate da virgole, senza distinzione tra maiuscole e minuscole. Lascia vuoto per tenere ogni parola.',
+    'Words dropped from the title before it becomes the slug, per language (de for every German site, whatever the country): whole words, comma-separated, any case. Leave empty to keep every word.' => 'Parole tolte dal titolo prima che diventi lo slug, per lingua (de per tutti i siti in tedesco, qualunque sia il paese): parole intere, separate da virgole, senza distinzione tra maiuscole e minuscole. Lascia vuoto per tenere ogni parola.',
 ];

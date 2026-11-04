@@ -63,7 +63,7 @@
     {% endif %}
 {% endfor %}
 
-{# the stop words: a line per site language #}
+{# the stop words: a line per language of the sites #}
 {% set disabled = 'stopWords' in overrides %}
 {% set stopWords %}
     {{ hiddenInput('stopWords', '') }}
@@ -71,7 +71,7 @@
         {{ forms.textField({
             label: "#{language.name} (#{language.id})",
             name: "stopWords[#{language.id}]",
-            value: settings.stopWords[language.id] ?? settings.stopWords[language.id|split('-')|first] ?? '',
+            value: settings.stopWords[language.id] ?? '',
             placeholder: 'a, an, and, the',
             disabled: disabled,
         }) }}
@@ -79,7 +79,7 @@
 {% endset %}
 {{ forms.field({
     label: 'Stop words'|t('slug-equals-title'),
-    instructions: 'Words dropped from the title before it becomes the slug, per site language: whole words, comma-separated, any case. Leave empty to keep every word.'|t('slug-equals-title'),
+    instructions: 'Words dropped from the title before it becomes the slug, per language (de for every German site, whatever the country): whole words, comma-separated, any case. Leave empty to keep every word.'|t('slug-equals-title'),
     errors: settings.getErrors('stopWords'),
     warning: disabled ? 'This is being overridden by the {name} setting in config/slug-equals-title.php.'|t('slug-equals-title', { name: 'stopWords' }),
 }, stopWords) }}
