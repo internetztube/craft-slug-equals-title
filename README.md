@@ -62,6 +62,8 @@ return [
 ];
 ```
 
+Types are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere. Settings saved by 3.0 are converted to UIDs by the update.
+
 **Stop words are optional.** Nothing is dropped until you list words, so an update changes no slug. To drop them, list them per site language, on the settings page or in the config file:
 
 ```php
@@ -73,7 +75,6 @@ return [
 
 [`src/config.php`](src/config.php) carries an example list for every language Craft speaks, commented out: uncomment yours and trim it. Japanese, Korean, Chinese and Thai have no spaces between words, so there is nothing to drop there.
 
-Types are named by handle here; the settings page stores UIDs (a renamed handle keeps its setting), and both are accepted everywhere. Settings saved by 3.0 are converted to UIDs by the update.
 
 ## Supported element types
 
