@@ -29,8 +29,8 @@ const FRAME = { width: 1600, height: 1200, scale: 1.5 };
 const STAGE = { left: 88, top: 248, width: 1424, height: 900 };
 /** Height of the window's title bar, in frame pixels. */
 const BAR = 36;
-/** The zoomed inset: at most this much of the window, at most this many frame pixels per CSS pixel, this far from the edge. */
-const INSET = { maxWidth: 0.42, maxHeight: 0.5, maxZoom: 2, margin: 28, pad: 10 };
+/** The zoomed inset: at most this much of the window, at most this many frame pixels per CSS pixel, this far from the edge; `pad` of the page around the target (CSS pixels), `box` of white inside the inset (frame pixels). */
+const INSET = { maxWidth: 0.42, maxHeight: 0.5, maxZoom: 2, margin: 28, pad: 10, box: 16 };
 const DEBUGGING_PORT = 9333;
 
 /** Paths of the demo elements, from dev/targets.php. */
@@ -232,7 +232,7 @@ const PAGE_CSS = `
     .shot > img { display: block; }
     .ring { position: absolute; border-radius: 8px; border: 2.5px solid ${ACCENT}; box-shadow: 0 0 0 4px rgba(46, 194, 126, .2), 0 6px 18px rgba(46, 194, 126, .3); }
     .link { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-    .inset { position: absolute; border-radius: 12px; overflow: hidden; background: #fff;
+    .inset { position: absolute; box-sizing: border-box; border-radius: 12px; overflow: hidden; background: #fff;
         box-shadow: 0 0 0 3px ${ACCENT}, 0 0 0 8px rgba(46, 194, 126, .22), 0 40px 80px -20px rgba(0, 0, 0, .75); }
     .inset img { display: block; }
 `;
@@ -254,7 +254,7 @@ function insetHtml(area: Area, insetUrl: string, scale: number, width: number, h
     if (!area.inset || !area.target) return '';
     const zoom = Math.min(INSET.maxZoom, INSET.maxWidth * width / area.inset.width, INSET.maxHeight * height / area.inset.height);
     if (zoom < scale * 1.35) return '';
-    const iw = Math.round(area.inset.width * zoom), ih = Math.round(area.inset.height * zoom);
+    const iw = Math.round(area.inset.width * zoom) + 2 * INSET.box, ih = Math.round(area.inset.height * zoom) + 2 * INSET.box; // the box, image and padding
     const ring = scaled(area.target, scale);
     const m = INSET.margin;
     const corners = [{ x: m, y: m }, { x: width - m - iw, y: m }, { x: m, y: height - m - ih }, { x: width - m - iw, y: height - m - ih }];
@@ -275,7 +275,7 @@ function insetHtml(area: Area, insetUrl: string, scale: number, width: number, h
     const line = apart
         ? `<svg class="link" width="${width}" height="${height}"><line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${ACCENT}" stroke-width="2.5" stroke-opacity=".9"/><circle cx="${start.x}" cy="${start.y}" r="5" fill="${ACCENT}"/></svg>`
         : '';
-    return `${line}<div class="inset" style="left:${at.x}px;top:${at.y}px;width:${iw}px;height:${ih}px"><img src="${insetUrl}" alt="" style="width:${iw}px;height:${ih}px"></div>`;
+    return `${line}<div class="inset" style="left:${at.x}px;top:${at.y}px;width:${iw}px;height:${ih}px;padding:${INSET.box}px"><img src="${insetUrl}" alt="" style="width:${iw - 2 * INSET.box}px;height:${ih - 2 * INSET.box}px"></div>`;
 }
 
 /** The whole page in a browser window, with rings on the highlights and the zoomed inset; `address` in its title bar. */
@@ -323,14 +323,21 @@ const COVER_SHOTS = ['edit-page', 'own-slug', 'settings'];
 const COVER_CHIPS = ['Native Craft 6 plugin', 'Per section, entry type or entry', 'Three test suites, 100 % covered', 'No build step'];
 
 /** The cover for the README and the Plugin Store: the plugin's name over three close-ups of the control panel. */
-function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): string {
-    const top = 450, bottom = 1150, gap = 32, caption = 40, margin = 88;
+/**
+ * The cover for the README and the Plugin Store: the plugin's name over three close-ups of the control panel, each in
+ * a padded white card. The canvas ends under the cards (`height`), so the close-ups are as big as the width allows.
+ */
+function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): { html: string, height: number } {
+    const top = 440, gap = 32, caption = 40, margin = 64, pad = 20;
     type Card = typeof cards[number];
     const ratio = (card: Card) => card.coverRegion.height / card.coverRegion.width;
-    const height = (card: Card, w: number) => Math.round(ratio(card) * w);
+    /** a card's height at a width: its image, padded */
+    const height = (card: Card, w: number) => Math.round(ratio(card) * (w - 2 * pad)) + 2 * pad;
     const [first, second, tall] = cards;
     const layout = (width: number) => {
-        const right = ((width - gap) * (ratio(first) + ratio(second)) + caption + gap) / (ratio(first) + ratio(second) + ratio(tall));
+        // the two columns equally tall: (r1 + r2)(L - 2p) + 4p + 2c + gap = r3(R - 2p) + 2p + c, with L = width - gap - R
+        const r12 = ratio(first) + ratio(second), r3 = ratio(tall);
+        const right = (r12 * (width - gap - 2 * pad) + 2 * pad + caption + gap + 2 * pad * r3) / (r12 + r3);
         const left = width - gap - right;
         const x = Math.round((FRAME.width - width) / 2);
         return {
@@ -342,19 +349,17 @@ function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): s
             bottom: top + caption + height(tall, right),
         };
     };
-    // as wide as the stage allows, and no taller than the stage
-    const maxWidth = FRAME.width - 2 * margin;
-    let { slots, bottom: end } = layout(maxWidth);
-    if (end !== bottom) {
-        ({ slots } = layout(Math.min(maxWidth, Math.round(maxWidth * (bottom - top) / (end - top)))));
-    }
+    // as wide as the canvas allows; the canvas is as tall as the cards need
+    const { slots, bottom } = layout(FRAME.width - 2 * margin);
     const crops = slots.map(({ card, left, top, width }) => `<figure class="crop" style="left:${left}px;top:${top}px;width:${width}px">
         <figcaption><i></i>${escapeHtml(card.shot.caption ?? card.shot.title)}</figcaption>
-        <div class="pic"><img src="${pathToFileURL(card.cover).href}" alt="" style="width:${width}px;height:${height(card, width)}px"></div>
+        <div class="pic"><img src="${pathToFileURL(card.cover).href}" alt="" style="width:${width - 2 * pad}px;height:${height(card, width) - 2 * pad}px"></div>
     </figure>`).join('');
     const chips = COVER_CHIPS.map((chip) => `<span>${escapeHtml(chip)}</span>`).join('');
-    return `<!doctype html><html><head><meta charset="utf-8"><style>
+    const canvasHeight = bottom + margin;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><style>
         ${PAGE_CSS}
+        body { height: ${canvasHeight}px; }
         .head { position: absolute; left: 0; right: 0; top: 72px; text-align: center; }
         .head img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 20px 50px rgba(0, 0, 0, .5); }
         h1 { margin: 22px 0 12px; font-size: 72px; letter-spacing: -.035em; }
@@ -365,7 +370,7 @@ function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): s
         .spot { position: absolute; left: 50%; top: ${top + 120}px; width: 1500px; height: 700px; transform: translateX(-50%); pointer-events: none;
             background: radial-gradient(closest-side, rgba(46, 194, 126, .16), transparent); filter: blur(40px); }
         .crop { position: absolute; margin: 0; }
-        .pic { border-radius: 14px; overflow: hidden; background: #fff;
+        .pic { border-radius: 14px; overflow: hidden; background: #fff; padding: ${pad}px;
             box-shadow: 0 60px 120px -30px rgba(0, 0, 0, .8), 0 20px 40px -20px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .16), inset 0 1px 0 rgba(255, 255, 255, .6); }
         .pic img { display: block; }
         figcaption { height: ${caption}px; display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; letter-spacing: .01em; color: #eef1f8; }
@@ -379,6 +384,7 @@ function coverHtml(cards: (Taken & { cover: string, coverRegion: Region })[]): s
         <div class="spot"></div>
         ${crops}
     </body></html>`;
+    return { html, height: canvasHeight };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -411,7 +417,7 @@ try {
         }
         let cover = null, coverRegion = null;
         if (shot.cover) {
-            coverRegion = await evaluate(browser, `return regionOf(${shot.cover}, 4);`) as Region;
+            coverRegion = await evaluate(browser, `return regionOf(${shot.cover}, 12);`) as Region;
             cover = join(workDir, `${shot.name}-cover.png`);
             writeFileSync(cover, await capture(browser, { ...coverRegion, x: coverRegion.x + area.scroll.x, y: coverRegion.y + area.scroll.y }));
         }
@@ -433,7 +439,9 @@ try {
     const coverCards = COVER_SHOTS.map((name) => taken.find((t) => t.shot.name === name && t.cover));
     if (coverCards.every(Boolean)) {
         const html = join(workDir, 'cover.html');
-        writeFileSync(html, coverHtml(coverCards as (Taken & { cover: string, coverRegion: Region })[]));
+        const cover = coverHtml(coverCards as (Taken & { cover: string, coverRegion: Region })[]);
+        writeFileSync(html, cover.html);
+        await resize(browser, { ...FRAME, height: cover.height });
         await open(browser, pathToFileURL(html).href);
         writeFileSync(resolve(outDir, 'cover.jpg'), await captureViewport(browser, 'jpeg'));
         console.log(`  cover ${resolve(outDir, 'cover.jpg')}`);
