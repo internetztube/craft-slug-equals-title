@@ -1,3 +1,5 @@
+> **Craft CMS 6:** this plugin is also available for Craft 6 as 4.x, a native Craft 6 plugin: [`4.x` branch](https://github.com/internetztube/craft-slug-equals-title/tree/4.x) · [4.0.0-alpha.1](https://github.com/internetztube/craft-slug-equals-title/releases/tag/4.0.0-alpha.1). This branch (3.x) is the Craft 5 version.
+
 # Slug Equals Title for Craft CMS 5
 
 **The slug follows the title. Per section by default, per entry when you want.**
