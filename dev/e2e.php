@@ -240,7 +240,7 @@ usleep(500000); // the YAML is written as the request ends, after the response
 $stored = Craft::$app->getProjectConfig()->get('plugins.slug-equals-title.settings', true);
 check(($stored['enabledSections'] ?? null) === [$newsUid, "$pagesUid:$landingUid"] && empty($stored['enabledProductTypes']), 'the ticked section and entry type are stored by UID; an empty list is stored as none');
 // the YAML packs associative arrays (`__assoc__`); Craft unpacks them when it applies the config
-check(\craft\helpers\ProjectConfig::unpackAssociativeArray($stored['stopWords'] ?? []) === [$lang => ['a', 'and', 'the']], 'the stop words are stored per language as lower-cased words; a language left empty is not stored');
+check(\craft\helpers\ProjectConfig::unpackAssociativeArray($stored['stopWords'] ?? []) === [$lang => 'a, and, the'], 'the stop words are stored per language as one line of lower-cased words; a language left empty is not stored');
 [$status, , $json] = $http->action('elements/save', ['elementId' => $news->id, 'siteId' => $news->siteId, 'title' => 'E2E: The news and the hills', 'slug' => $reload($news)->slug, SlugEqualsTitle::PARAM => '1']);
 check($status === 200 && empty($json['errors']) && $reload($news)->slug === 'e2e-news-hills', 'and they are in effect: an entry saved with the switch on gets its slug without them (' . $reload($news)->slug . ')');
 [$status, $html] = $http->page('/admin/settings/plugins/slug-equals-title');

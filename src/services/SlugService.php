@@ -105,11 +105,12 @@ final class SlugService extends Component
      */
     public function titleForSlug(string $title, string $language): string
     {
-        $words = (SlugEqualsTitle::getInstance() ?? throw new InvalidConfigException('Plugin not loaded'))->getSettings()->stopWords;
-        $words = $words[$language] ?? $words[strtolower($language)] ?? $words[explode('-', $language)[0]] ?? [];
-        if ($words === []) {
+        $lines = (SlugEqualsTitle::getInstance() ?? throw new InvalidConfigException('Plugin not loaded'))->getSettings()->stopWords;
+        $line = $lines[$language] ?? $lines[strtolower($language)] ?? $lines[explode('-', $language)[0]] ?? '';
+        if ($line === '') {
             return $title;
         }
+        $words = explode(', ', $line);
         $pattern = '/(?<![\p{L}\p{N}])(?:' . implode('|', array_map(fn(string $word): string => preg_quote($word, '/'), $words)) . ')(?![\p{L}\p{N}])/iu';
         $stripped = trim((string)preg_replace('/\s+/u', ' ', (string)preg_replace($pattern, ' ', $title)));
         return preg_match('/[\p{L}\p{N}]/u', $stripped) === 1 ? $stripped : $title;

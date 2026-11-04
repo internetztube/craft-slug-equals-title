@@ -71,7 +71,7 @@
         {{ forms.textField({
             label: "#{language.name} (#{language.id})",
             name: "stopWords[#{language.id}]",
-            value: (settings.stopWords[language.id] ?? settings.stopWords[language.id|split('-')|first] ?? [])|join(', '),
+            value: settings.stopWords[language.id] ?? settings.stopWords[language.id|split('-')|first] ?? '',
             placeholder: 'a, an, and, the',
             disabled: disabled,
         }) }}

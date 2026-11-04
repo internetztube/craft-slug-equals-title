@@ -22,8 +22,8 @@ final class Settings extends Model
     public array $enabledProductTypes = [];
 
     /**
-     * @var array<string, list<string>> Words dropped from the title before it becomes the slug, per site language
-     * ("de-CH" falls back to "de"): whole words, any case. Empty: every word stays.
+     * @var array<string, string> Words dropped from the title before it becomes the slug, per site language ("de-CH"
+     * falls back to "de"): one line per language, "a, and, the", as the settings page edits it. Empty: every word stays.
      */
     public array $stopWords = [];
 
@@ -43,24 +43,24 @@ final class Settings extends Model
             }
         }
         if (array_key_exists('stopWords', $values)) {
-            $values['stopWords'] = self::wordsPerLanguage($values['stopWords']);
+            $values['stopWords'] = self::linesPerLanguage($values['stopWords']);
         }
         parent::setAttributes($values, $safeOnly);
     }
 
     /**
-     * The settings page posts a comma-separated line per language, the config file lists; both become lower-cased
-     * unique words, languages without words are dropped.
-     * @return array<string, list<string>>
+     * The settings page posts a comma-separated line per language, the config file lists: both become one line of
+     * lower-cased unique words, "a, and, the"; languages without words are dropped.
+     * @return array<string, string>
      */
-    private static function wordsPerLanguage(mixed $value): array
+    private static function linesPerLanguage(mixed $value): array
     {
         $result = [];
         foreach (is_array($value) ? $value : [] as $language => $words) {
             $list = is_array($words) ? $words : (preg_split('/[\s,;]+/u', is_string($words) ? $words : '') ?: []);
             $list = array_filter(array_map(fn(mixed $word): string => mb_strtolower(trim(is_string($word) ? $word : '')), $list));
             if ($list !== [] && is_string($language) && $language !== '') {
-                $result[$language] = array_values(array_unique($list));
+                $result[$language] = implode(', ', array_unique($list));
             }
         }
         return $result;
