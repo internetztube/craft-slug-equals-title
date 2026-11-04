@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## Unreleased
 
-## 3.1.0 - 2026-11-03
+## 3.1.0 - 2026-11-04
 
 A rewrite under the hood that keeps the behaviour: less code (no asset bundle, no build step, no record class) and three test suites.
 
