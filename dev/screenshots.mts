@@ -9,7 +9,7 @@
  * Env: CHROME (path to Chrome), CP_PASSWORD (the admin's password, default: the dev password).
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -90,7 +90,8 @@ interface Taken {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const php = process.env.PHP ?? '/opt/homebrew/opt/php/bin/php';
+// Homebrew's PHP 8.5 on this Mac (the default `php` may be older); elsewhere (CI) the one on the PATH
+const php = process.env.PHP ?? (existsSync('/opt/homebrew/opt/php/bin/php') ? '/opt/homebrew/opt/php/bin/php' : 'php');
 const targets: Targets = JSON.parse(execFileSync(php, [join(here, 'targets.php'), projectDir], { encoding: 'utf8' }));
 const password = process.env.CP_PASSWORD ?? 'password';
 const only = (process.env.ONLY ?? '').split(',').filter(Boolean);

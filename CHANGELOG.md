@@ -6,12 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## Unreleased
 
-### Added
-- Stop words, optional: words listed per language in the settings (a line per language of the sites: `de` for de-AT and de-DE alike, which Craft keeps apart) or in `config/craft/slug-equals-title.php` fall out of the title before it becomes the slug, as whole words in any case. Off until you list words, so the update changes no slug and needs no migration; a title of nothing but stop words keeps every word. The config example lists a starting point for every language Craft ships, commented out. [#17](https://github.com/internetztube/craft-slug-equals-title/issues/17)
-
 ## 4.0.0-alpha.1 - 2026-11-04
 
 The plugin for Craft 6. Everything 3.1 does, on Craft 6's new editor and its slideouts. See [`UPGRADE.md`](UPGRADE.md).
+
+### Added
+- Stop words, optional: words listed per language in the settings (a line per language of the sites: `de` for de-AT and de-DE alike, which Craft keeps apart) or in `config/craft/slug-equals-title.php` fall out of the title before it becomes the slug, as whole words in any case. Off until you list words, so the update changes no slug and needs no migration; a title of nothing but stop words keeps every word. The config example lists a starting point for every language Craft ships, commented out. [#17](https://github.com/internetztube/craft-slug-equals-title/issues/17)
 
 ### Breaking changes
 - **Craft 6 and PHP 8.5.** Sites on Craft 5 stay on 3.x. Update to 3.1.0 first: 4.0 expects its table and settings.

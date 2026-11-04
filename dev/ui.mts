@@ -9,7 +9,7 @@
  * Env: CHROME (path to Chrome), CP_PASSWORD (the admin's password, default: the dev password).
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluate, launchChrome, login, open, PAGE_HELPERS, resize, sleep } from './browser.mts';
@@ -22,7 +22,8 @@ if (!projectDir) {
 const here = dirname(fileURLToPath(import.meta.url));
 const password = process.env.CP_PASSWORD ?? 'password';
 const only = process.env.ONLY ?? '';
-const php = process.env.PHP ?? '/opt/homebrew/opt/php/bin/php';
+// Homebrew's PHP 8.5 on this Mac (the default `php` may be older); elsewhere (CI) the one on the PATH
+const php = process.env.PHP ?? (existsSync('/opt/homebrew/opt/php/bin/php') ? '/opt/homebrew/opt/php/bin/php' : 'php');
 
 /** The demo elements and two fresh fixtures (dev/targets.php). */
 interface Targets {
